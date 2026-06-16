@@ -65,3 +65,38 @@ Use `from wrcam.profiling import get_stage_recorder` inside the child.
 ## Dependencies
 
 Profiling is **stdlib-only** plus optional `nvidia-smi` on PATH for GPU sampling. No torch required.
+
+## Published cost table (2026-06-17)
+
+Full-model resource profile summary (17 ACTIVE smoke models with generated rows; host
+`10.40.1.28` + manual shard reruns; `hunyuan-game-craft` pending dedicated run):
+
+- [resource_profile_summary.all.md](data/resource_profile_summary.all.md)
+- [resource_profile_summary.all.json](data/resource_profile_summary.all.json)
+
+Headline metric: `gpu_seconds_per_output_second` (preprocess+inference only; model load
+reported separately). Rows with `generation_status != generated` are excluded from the
+denominator.
+
+**Out of scope for v1 cost table:** `sana-wm`, `minwm-hy-action2v`, `matrix-game-2`
+(no smoke-task harness yet); `hunyuanworld-voyager` (research-only); `hyworld-worldgen`
+(upstream blocked).
+
+Summarize WRBenchLib profiles with WRCam:
+
+```bash
+wrcam profile-summary /path/to/qc/resource_profiles --format markdown
+```
+
+## Fairness verification
+
+Camera direction/amplitude fairness uses **VGGT-Omega** pose estimation + D1 scoring
+(see WRBenchLib `scripts/calibration/`). Report:
+
+- [fairness_verification_report.md](data/fairness_verification_report.md)
+
+Regenerate:
+
+```bash
+python scripts/generate_fairness_report.py --acceptance-csv docs/data/acceptance_summary.csv
+```
