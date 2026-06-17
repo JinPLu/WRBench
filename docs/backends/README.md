@@ -27,26 +27,6 @@ wrcam generate \
   --no-dry-run
 ```
 
-## GPU proof (2026-06-17)
-
-End-to-end `--no-dry-run` validation on a reference GPU host (A800, dedicated model
-venvs + `wrcam.runtime.json`):
-
-| Model | Command | Result |
-| --- | --- | --- |
-| `easyanimate-v51-camera` | `wrcam generate --model easyanimate-v51-camera --camera preset:yaw_LR --peak-deg 30 --image <first_frame.png> --prompt "<scene>" --width 672 --height 384 --fps 8 --frames 49 --out easyanimate_yaw30.mp4 --no-dry-run` | **OK** — materialized `predict_v2v_control.py` + output mp4 (~401 KB) |
-| `spatia` | `wrcam generate --model spatia --camera preset:yaw_LR --peak-deg 30 --source-video <source.mp4> --prompt "<scene>" --width 1248 --height 704 --fps 24 --frames 121 --out spatia_yaw30.mp4 --no-dry-run` | **OK** — Spatia `inference.py` + output mp4 (~449 KB) |
-
-Notes:
-
-- EasyAnimate uses **WRBench-style script materialization** (patch top-level defaults in
-  `predict_v2v_control.py`); CLI flags alone are not sufficient.
-- Set `PYTHONPATH` to the EasyAnimate repo root and prefer the model-dedicated venv
-  (`easyanimate_v51_camera`); disable teacache via `extra_paths.enable_teacache: "false"`
-  when `flash-attn` is unavailable.
-- Spatia requires **absolute** `--out` paths (subprocess cwd is the Spatia repo).
-- Install `opencv-python-headless` in the WRCam venv when `ffmpeg` is not on `PATH`.
-
 ## Reference models (v0.1)
 
 | Model | Kind | Backend support |
@@ -54,6 +34,19 @@ Notes:
 | `easyanimate-v51-camera` | TI2V | `local_subprocess` (EasyAnimate `predict_v2v_control.py`) |
 | `spatia` | V2V | `local_subprocess` (Spatia `inference.py`) |
 | `gen3c` | V2V | Documented `execution_contract`; backend planned (ViPE + in-process pipeline) |
+
+### EasyAnimate notes
+
+- Uses **script materialization** (patch top-level defaults in
+  `predict_v2v_control.py`); CLI flags alone are not sufficient.
+- Set `PYTHONPATH` to the EasyAnimate repo root and use the model-dedicated venv.
+- Disable teacache via `extra_paths.enable_teacache: "false"` when `flash-attn`
+  is unavailable.
+
+### Spatia notes
+
+- Requires **absolute** `--out` paths (subprocess cwd is the Spatia repo).
+- Install `opencv-python-headless` in the WRCam venv when `ffmpeg` is not on `PATH`.
 
 ## `execution_contract` schema
 

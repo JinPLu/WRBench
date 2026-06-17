@@ -3,7 +3,7 @@
 ``CameraTrajectory`` is the model-agnostic intermediate representation: a stack
 of ``(N, 4, 4)`` OpenCV camera-to-world poses plus per-frame intrinsics. Every
 adapter consumes this and emits a model-native payload. ``write_target_artifacts``
-emits the auditable sidecars that downstream evaluation (OoVMetric / MegaSAM)
+emits the auditable sidecars that downstream WRBench evaluation
 relies on.
 """
 

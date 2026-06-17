@@ -204,17 +204,6 @@ wrcam doctor --all
 
 ---
 
-## Contrast with WRBenchLib (historical)
+## Design note
 
-In the previous WRBenchLib multi-file chain, adding a model required edits to several separate files:
-
-| WRBenchLib (old) | wrcam (new) |
-|---|---|
-| Alias map entry | Included in the JSON `aliases` field |
-| `config/inference_contracts.json` entry | Included in the JSON `capabilities` and `adapter` fields |
-| `config/camera_amplitude.yaml` entry | Included in the JSON `amplitude` block |
-| Capability flags (separate contract file) | Included in the JSON `capabilities` block |
-| Shell list / run-spec entry | Not needed; `wrcam doctor` validates the pair |
-| Adapter class in `wrbenchlib/inference/...` | `src/wrcam/adapters/<key>.py` |
-
-The wrcam approach collapses the full per-model configuration into **one JSON + one Python module + one import line**, with a single validation pass at load time.
+WRCam collapses per-model configuration into **one JSON + one Python module + one import line**, with a single validation pass at load time. Alias maps, capability flags, amplitude calibration, and adapter wiring all live in the model JSON; `wrcam doctor` validates the pair at load time.

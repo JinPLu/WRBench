@@ -26,5 +26,18 @@
         "seed": "20917"
       }
     }
+  },
+  "eval": {
+    "scorers": {
+      "gpu_id": 0,
+      "vggt_python_bin": "/path/to/vggt/venv/bin/python",
+      "vggt_repo": "/path/to/vggt-omega",
+      "vggt_checkpoint": "/path/to/models_ckpt/vggt_omega/VGGT-Omega-1B-512/vggt_omega_1b_512.pt",
+      "dinov2_python_bin": "/path/to/torch/venv/bin/python",
+      "dinov2_model_path": "/path/to/models_ckpt/dinov2_large",
+      "qwen_scorer_python": "/path/to/your-qwen-scorer-venv/bin/python",
+      "qwen35_model": "/path/to/models_ckpt/Qwen3.5-9B",
+      "qwen3vl_model": "/path/to/models_ckpt/Qwen3-VL-8B-Instruct"
+    }
   }
 }

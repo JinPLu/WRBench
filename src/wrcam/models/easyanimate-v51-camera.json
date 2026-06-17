@@ -107,7 +107,6 @@
   },
   "input_kind": "image",
   "key": "easyanimate-v51-camera",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.easyanimate-v51-camera",
   "payload_type": "easyanimate_camera_txt",
   "status": "active"
 }

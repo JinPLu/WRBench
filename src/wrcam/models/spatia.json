@@ -22,7 +22,9 @@
   "execution_contract": {
     "cli_flag_parameters": [],
     "cli_parameter_order": [],
-    "command_prefix": ["python"],
+    "command_prefix": [
+      "python"
+    ],
     "entrypoint": "inference.py",
     "official_inference_profile": {
       "cfg_scale": 3.5,
@@ -45,7 +47,6 @@
   },
   "input_kind": "source_video",
   "key": "spatia",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.spatia",
   "payload_type": "spatia_w2c_trajectory_files",
   "status": "active"
 }

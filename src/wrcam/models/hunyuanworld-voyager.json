@@ -147,7 +147,6 @@
   },
   "input_kind": "image",
   "key": "hunyuanworld-voyager",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.hunyuanworld-voyager",
   "payload_type": "voyager_wrbench_rendered_camera_condition",
   "status": "active"
 }

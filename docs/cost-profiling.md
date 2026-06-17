@@ -87,21 +87,8 @@ benchmark. `gpu_seconds_per_output_second` multiplies benchmark wall time by `gp
 (no smoke-task harness yet); `hunyuanworld-voyager` (research-only); `hyworld-worldgen`
 (upstream blocked).
 
-Summarize WRBenchLib profiles with WRCam:
+Summarize saved profiles with WRCam:
 
 ```bash
-wrcam profile-summary /path/to/qc/resource_profiles --format markdown
-```
-
-## Fairness verification
-
-Camera direction/amplitude fairness uses **VGGT-Omega** pose estimation + D1 scoring
-(see WRBenchLib `scripts/calibration/`). Report:
-
-- [fairness_verification_report.md](data/fairness_verification_report.md)
-
-Regenerate:
-
-```bash
-python scripts/generate_fairness_report.py --acceptance-csv docs/data/acceptance_summary.csv
+wrcam profile-summary /path/to/resource_profiles --format markdown
 ```

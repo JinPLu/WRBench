@@ -438,7 +438,7 @@ class MatrixGame2Adapter:
 
 
 class ATIWan21Adapter:
-    """Deferred: not registered in WRCam (matches WRBenchLib exclusion)."""
+    """Deferred: not registered in WRCam."""
 
     name = "ati_wan21_14b"
 

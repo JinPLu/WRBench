@@ -603,8 +603,30 @@ def _cmd_prompt(args: argparse.Namespace) -> int:
         )
 
         if args.deterministic:
-            candidates = json.loads(Path(args.candidates_json).read_text(encoding="utf-8"))
-            families = {r["family_id"]: r for r in load_jsonl(args.families_jsonl)}
+            from wrcam.datasets import build_natural25_candidates, natural25_families_path
+
+            candidates_path = args.candidates_json
+            families_path = args.families_jsonl
+            if bool(candidates_path) ^ bool(families_path):
+                print(
+                    "prompt task --deterministic: provide both --candidates-json and "
+                    "--families-jsonl, or omit both to use bundled Natural-25 data.",
+                    file=sys.stderr,
+                )
+                return 2
+            if candidates_path and families_path:
+                candidates = json.loads(Path(candidates_path).read_text(encoding="utf-8"))
+                families = {r["family_id"]: r for r in load_jsonl(families_path)}
+            else:
+                candidates = build_natural25_candidates()
+                families = {r["family_id"]: r for r in load_jsonl(natural25_families_path())}
+            missing = [c["candidate_id"] for c in candidates if c["candidate_id"] not in families]
+            if missing:
+                print(
+                    f"prompt task --deterministic: warning: {len(missing)} candidate(s) "
+                    f"have no matching family and will be skipped.",
+                    file=sys.stderr,
+                )
             variants = generate_variants_deterministic(candidates, families)
             if args.output:
                 write_jsonl(args.output, variants)
@@ -662,6 +684,126 @@ def _cmd_firstframe(args: argparse.Namespace) -> int:
     for m in manifests:
         print(f"  {m.family_id} -> {m.image_path}")
     return 0
+
+
+# ---------------------------------------------------------------------------
+# Sub-command: eval (D1-D6)
+# ---------------------------------------------------------------------------
+
+def _cmd_eval(args: argparse.Namespace) -> int:
+    from pathlib import Path
+
+    from wrcam.eval.runtime import (
+        build_table,
+        contract_path,
+        d1_score,
+        d1_camalign_score,
+        d1_vggt_batch,
+        d2_extract,
+        d3d6_score,
+        eval_run,
+        require_eval_runtime,
+    )
+
+    runtime_path = Path(args.runtime_config) if args.runtime_config else None
+
+    if args.eval_command == "contract":
+        path = contract_path()
+        if args.json:
+            import json
+
+            print(json.dumps(json.loads(path.read_text(encoding="utf-8")), indent=2))
+        else:
+            md = path.with_suffix(".md")
+            print(md.read_text(encoding="utf-8") if md.is_file() else path.read_text(encoding="utf-8"))
+        return 0
+
+    if args.eval_command == "table":
+        if not args.runtime_scores or not args.out_csv or not args.out_md or not args.out_summary:
+            print(
+                "eval table requires --runtime-scores --out-csv --out-md --out-summary",
+                file=sys.stderr,
+            )
+            return 2
+        argv = [
+            "--runtime-scores",
+            str(args.runtime_scores),
+            "--out-csv",
+            str(args.out_csv),
+            "--out-md",
+            str(args.out_md),
+            "--out-summary",
+            str(args.out_summary),
+        ]
+        if args.d1_scores:
+            argv.extend(["--d1-scores", str(args.d1_scores)])
+        if args.d1_camalign_scores:
+            argv.extend(["--d1-camalign-scores", str(args.d1_camalign_scores)])
+        if args.d2_scores:
+            argv.extend(["--d2-scores", str(args.d2_scores)])
+        return build_table(argv)
+
+    if args.eval_command == "d1":
+        # D1 scoring is pure-numpy over an existing pose cache; it does not need
+        # the external model scorers, so do not require an eval.scorers block.
+        return d1_score(
+            input_jsonl=Path(args.input_jsonl),
+            output_jsonl=Path(args.output_jsonl),
+            summary_csv=Path(args.summary_csv),
+            pose_cache_root=Path(args.pose_cache_root),
+            pose_backend=args.pose_backend,
+            poses_file=args.poses_file,
+            default_frames=args.default_frames,
+            sidecar_profile_gate=args.sidecar_profile_gate,
+        )
+
+    if args.eval_command == "d1-camalign":
+        return d1_camalign_score(
+            input_jsonl=Path(args.input_jsonl),
+            output_jsonl=Path(args.output_jsonl),
+            pose_cache_root=Path(args.pose_cache_root),
+            poses_file=args.poses_file,
+        )
+
+    eval_runtime = require_eval_runtime(runtime_path)
+
+    if args.eval_command == "d1-vggt":
+        return d1_vggt_batch(
+            eval_runtime=eval_runtime,
+            input_jsonl=Path(args.input_jsonl),
+            output_root=Path(args.output_root),
+            cache_root=Path(args.cache_root) if args.cache_root else None,
+            execution_mode=args.execution_mode,
+        )
+
+    if args.eval_command == "d2":
+        return d2_extract(
+            eval_runtime=eval_runtime,
+            videos_manifest=Path(args.videos_manifest),
+            out_jsonl=Path(args.out_jsonl),
+            model_dir=Path(args.model_dir) if args.model_dir else None,
+        )
+
+    if args.eval_command == "d3d6":
+        return d3d6_score(
+            eval_runtime=eval_runtime,
+            manifest=Path(args.manifest),
+            out_dir=Path(args.out_dir),
+            stage=args.stage,
+            scorer_profile=args.scorer_profile,
+        )
+
+    if args.eval_command == "run":
+        return eval_run(
+            eval_runtime=eval_runtime,
+            manifest=Path(args.manifest),
+            out_dir=Path(args.out_dir),
+            scorer_profile=args.scorer_profile,
+            sidecar_profile_gate=args.sidecar_profile_gate,
+        )
+
+    print(f"eval: unknown sub-command {args.eval_command!r}", file=sys.stderr)
+    return 2
 
 
 # ---------------------------------------------------------------------------
@@ -806,8 +948,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_task = p_prompt_sub.add_parser("task", help="Generate ti2v variant prompts.")
     p_task.add_argument("--deterministic", action="store_true", help="Deterministic Natural-25 style path.")
-    p_task.add_argument("--candidates-json", dest="candidates_json", metavar="PATH")
-    p_task.add_argument("--families-jsonl", dest="families_jsonl", metavar="PATH")
+    p_task.add_argument(
+        "--candidates-json",
+        dest="candidates_json",
+        metavar="PATH",
+        help="Optional candidates JSON; default builds from bundled data/natural25/scene_events_25x4.csv.",
+    )
+    p_task.add_argument(
+        "--families-jsonl",
+        dest="families_jsonl",
+        metavar="PATH",
+        help="Optional families JSONL; default uses bundled data/natural25/families.jsonl.",
+    )
     p_task.add_argument("--output", metavar="PATH")
 
     # firstframe
@@ -832,6 +984,121 @@ def _build_parser() -> argparse.ArgumentParser:
         "--all", action="store_true", help="Check all models including deferred."
     )
 
+    # eval
+    p_eval = sub.add_parser(
+        "eval",
+        help="WRBench diagnostic evaluation (core): D1-D6 metrics + main table.",
+    )
+    eval_sub = p_eval.add_subparsers(dest="eval_command", metavar="<eval-command>")
+    eval_sub.required = True
+    p_eval.add_argument(
+        "--runtime-config",
+        dest="runtime_config",
+        default=None,
+        help="Path to wrcam.runtime.json (default: auto-detect).",
+    )
+
+    p_eval_contract = eval_sub.add_parser("contract", help="Print the D1-D6 metric contract.")
+    p_eval_contract.add_argument("--json", action="store_true", help="Print JSON contract.")
+
+    p_eval_d1 = eval_sub.add_parser("d1", help="Score D1 camera accuracy from pose cache + sidecars.")
+    p_eval_d1.add_argument("--input-jsonl", required=True)
+    p_eval_d1.add_argument("--output-jsonl", required=True)
+    p_eval_d1.add_argument("--summary-csv", required=True)
+    p_eval_d1.add_argument("--pose-cache-root", required=True)
+    p_eval_d1.add_argument("--pose-backend", default="vggt_omega")
+    p_eval_d1.add_argument("--poses-file", default="poses.npy")
+    p_eval_d1.add_argument("--default-frames", type=int, default=121)
+    p_eval_d1.add_argument(
+        "--sidecar-profile-gate",
+        choices=("main", "certified_opencv"),
+        default="main",
+        help=(
+            "Target sidecar validation gate. 'main' is the canonical main-table profile; "
+            "'certified_opencv' accepts certified OpenCV C2W sidecars after external QC."
+        ),
+    )
+
+    p_eval_camalign = eval_sub.add_parser(
+        "d1-camalign",
+        help="Score D1 prompt-camera alignment (CamAlign) from pose cache.",
+    )
+    p_eval_camalign.add_argument("--input-jsonl", required=True)
+    p_eval_camalign.add_argument("--output-jsonl", required=True)
+    p_eval_camalign.add_argument("--pose-cache-root", required=True)
+    p_eval_camalign.add_argument("--poses-file", default="poses.npy")
+
+    p_eval_vggt = eval_sub.add_parser("d1-vggt", help="Export VGGT-Omega poses for D1 scoring.")
+    p_eval_vggt.add_argument("--input-jsonl", required=True)
+    p_eval_vggt.add_argument("--output-root", required=True)
+    p_eval_vggt.add_argument("--cache-root", default=None)
+    p_eval_vggt.add_argument(
+        "--execution-mode",
+        choices=("subprocess", "inprocess"),
+        default="subprocess",
+    )
+
+    p_eval_d2 = eval_sub.add_parser("d2", help="Extract DINOv2 D2 visual-integrity features.")
+    p_eval_d2.add_argument("--videos-manifest", required=True)
+    p_eval_d2.add_argument("--out-jsonl", required=True)
+    p_eval_d2.add_argument("--model-dir", default=None)
+
+    p_eval_run = eval_sub.add_parser(
+        "run",
+        help="Run full eval pipeline: D1 pose -> D1 score -> D2 -> D3-D6 -> table.",
+    )
+    p_eval_run.add_argument("--manifest", required=True, help="JSON manifest of videos to score.")
+    p_eval_run.add_argument("--out-dir", required=True, help="Output directory for all eval artifacts.")
+    p_eval_run.add_argument(
+        "--scorer-profile",
+        default="wrbench_default",
+        choices=("wrbench_default", "current_benchmark_p25_p22_e14", "ablation_manifest_metadata", "legacy_p9_all_manifest_metadata", "custom"),
+    )
+    p_eval_run.add_argument(
+        "--sidecar-profile-gate",
+        choices=("main", "certified_opencv"),
+        default="main",
+        help=(
+            "Target sidecar validation gate. 'main' is the canonical main-table profile; "
+            "'certified_opencv' accepts certified OpenCV C2W sidecars after external QC."
+        ),
+    )
+
+    p_eval_d3d6 = eval_sub.add_parser("d3d6", help="Run visible/returned VLM scoring stages (power users).")
+    p_eval_d3d6.add_argument("--manifest", required=True)
+    p_eval_d3d6.add_argument("--out-dir", required=True)
+    p_eval_d3d6.add_argument(
+        "--stage",
+        default="all",
+        choices=(
+            "preflight",
+            "qwen35",
+            "merge_qwen35",
+            "gate_binary",
+            "merge_binary",
+            "build_rescue",
+            "gate_rescue",
+            "merge_rescue",
+            "overlay_gate",
+            "export",
+            "all",
+        ),
+    )
+    p_eval_d3d6.add_argument(
+        "--scorer-profile",
+        default="wrbench_default",
+        choices=("wrbench_default", "current_benchmark_p25_p22_e14", "ablation_manifest_metadata", "legacy_p9_all_manifest_metadata", "custom"),
+    )
+
+    p_eval_table = eval_sub.add_parser("table", help="Build D1-D6 main benchmark table.")
+    p_eval_table.add_argument("--runtime-scores", required=True)
+    p_eval_table.add_argument("--d1-scores", default=None)
+    p_eval_table.add_argument("--d1-camalign-scores", default=None)
+    p_eval_table.add_argument("--d2-scores", default=None)
+    p_eval_table.add_argument("--out-csv", required=True)
+    p_eval_table.add_argument("--out-md", required=True)
+    p_eval_table.add_argument("--out-summary", required=True)
+
     return parser
 
 
@@ -849,6 +1116,7 @@ _DISPATCH = {
     "profile-summary": _cmd_profile_summary,
     "prompt": _cmd_prompt,
     "firstframe": _cmd_firstframe,
+    "eval": _cmd_eval,
 }
 
 

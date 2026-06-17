@@ -177,7 +177,6 @@
   },
   "input_kind": "image",
   "key": "sana-wm",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.sana-wm",
   "payload_type": "sana_wm_camera_npy",
   "status": "active"
 }

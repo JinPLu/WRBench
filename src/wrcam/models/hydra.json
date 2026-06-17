@@ -24,7 +24,6 @@
   "default_width": 832,
   "input_kind": "source_video",
   "key": "hydra",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.hydra",
   "payload_type": "hydra_split_camera_json",
   "status": "active"
 }

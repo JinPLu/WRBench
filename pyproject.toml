@@ -17,6 +17,7 @@ dependencies = ["numpy>=1.23"]
 dev = ["pytest>=7"]
 prompts = ["httpx>=0.27"]
 firstframe = ["httpx>=0.27", "pillow>=10"]
+eval = []
 all = ["httpx>=0.27", "pillow>=10", "pytest>=7"]
 
 [project.scripts]
@@ -26,7 +27,13 @@ wrcam = "wrcam.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-wrcam = ["models/*.json", "prompts/templates/*.txt"]
+wrcam = [
+  "models/*.json",
+  "prompts/templates/*.txt",
+  "eval/contract/*.json",
+  "eval/contract/*.md",
+  "data/**/*",
+]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

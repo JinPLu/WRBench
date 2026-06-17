@@ -182,7 +182,6 @@
   },
   "input_kind": "image",
   "key": "matrix-game-3",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.matrix-game-3",
   "payload_type": "matrix_game3_action_conditions",
   "status": "active"
 }

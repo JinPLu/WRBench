@@ -105,7 +105,6 @@
   },
   "input_kind": "image",
   "key": "matrix-game-2",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.matrix-game-2",
   "payload_type": "matrix_game2_action_conditions",
   "status": "active"
 }

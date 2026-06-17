@@ -42,9 +42,13 @@ System prompt templates live in `src/wrcam/prompts/templates/`.
 
 ## Task prompt (TI2V variants)
 
-**Deterministic path** (no LLM): rebuild Natural-25 style variants from candidates JSON + families JSONL.
+**Deterministic path** (no LLM): rebuild Natural-25 style variants from bundled data or custom inputs.
 
 ```bash
+# Uses bundled Natural-25 data shipped inside the wrcam package by default
+wrcam prompt task --deterministic --output variants.jsonl
+
+# Or specify custom paths
 wrcam prompt task --deterministic \
   --candidates-json candidates.json \
   --families-jsonl families.jsonl \

@@ -21,7 +21,6 @@
   "default_width": 832,
   "input_kind": "source_video",
   "key": "inspatio-world",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.inspatio-world",
   "payload_type": "inspatio_per_frame_action_txt",
   "status": "active"
 }

@@ -153,7 +153,6 @@
   },
   "input_kind": "image",
   "key": "minwm-hy-action2v",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.minwm-hy-action2v",
   "payload_type": "minwm_hy_action2v_trajectory_json",
   "status": "active"
 }

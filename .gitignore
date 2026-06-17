@@ -18,3 +18,6 @@ wrcam.runtime.json
 .cursor/
 .codex/
 .claude/
+AGENTS.md
+CURSOR.md
+docs/teamwork/

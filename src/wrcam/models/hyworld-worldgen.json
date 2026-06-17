@@ -105,7 +105,6 @@
   },
   "input_kind": "image",
   "key": "hyworld-worldgen",
-  "notes": "Ported from WRBenchLib inference_contracts.json profiles.hyworld-worldgen",
   "payload_type": "hyworld_worldgen_camera_json",
   "status": "active"
 }

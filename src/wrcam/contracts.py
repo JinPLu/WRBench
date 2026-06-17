@@ -1,7 +1,8 @@
 """Minimal execution-contract helpers for contract-driven adapters.
 
 Contract payloads live inline in each model registry JSON under
-``execution_contract``. This replaces WRBenchLib's monolithic
+``execution_contract``. This is the WRCam-native contract layer for
+model-specific generation inputs.
 ``inference_contracts.json`` for compile-time adapter needs.
 """
 
