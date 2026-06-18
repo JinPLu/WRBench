@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>WRBench | World Models Need More Than Static Scene</title>
+  <title>WRBench | Current World Models Lack a Persistent State Core</title>
   <meta name="description"
     content="WRBench is a diagnostic benchmark for dynamic world-state evaluation under viewpoint changes. 23 video generators, 9,600 videos, six evaluation dimensions, and a diagnostic profile — not one scalar score.">
   <meta name="robots" content="index, follow">
@@ -2168,12 +2168,12 @@
       <div class="container hero-grid reveal">
         <div class="hero-copy">
           <p class="hero-badge">Diagnostic benchmark for dynamic world-state evaluation under viewpoint changes</p>
-          <h1>World Models Need More Than Static Scene</h1>
+          <h1>Current World Models Lack a Persistent State Core</h1>
           <p class="hero-subtitle-pill">WRBench treats a camera move as an <strong>intervention on
               observability</strong>:
             it fixes a scene and an event, then turns the camera away while something changes out of view.</p>
-          <p class="hero-tagline">It tests <strong>world-state persistence under viewpoint intervention</strong> — the
-            background may return, but the changed object often does not.</p>
+          <p class="hero-tagline">It tests whether a model keeps an <strong>internal world state evolving, decoupled
+              from observation</strong> — the room may return, while the event target resets to where it was left.</p>
           <div class="btn-group">
             <a class="btn primary" href="iclr2026_conference.pdf">Paper PDF</a>
             <a class="btn" href="https://github.com/JinPLu/WRBench" target="_blank" rel="noopener">Code</a>
@@ -2184,8 +2184,9 @@
         <aside class="hero-summary-card">
           <span class="hero-summary-label">Preservation–access–returned-consistency gap</span>
           <div class="hero-summary-headline">23 / 23</div>
-          <p class="hero-summary-sub"><strong>All 23 models</strong> show the gap — <strong>visible quality</strong> and
-            <strong>re-observation access</strong> do not predict a <strong>correct return</strong>.
+          <p class="hero-summary-sub"><strong>All 23 models</strong> hold the observed world as a
+            <strong>tracking shot</strong> — on return, the target resumes where it was abandoned instead of advancing
+            while the camera looked away.
           </p>
           <div class="hero-stats-grid">
             <div class="stat">
@@ -2210,11 +2211,12 @@
       <div class="container teaser-inline reveal">
         <div class="figure-frame figure-wide">
           <div class="figure-scroll">
-            <img src="assets/teaser.png"
-              alt="WRBench teaser: shared scene, event, and camera path with returned world-state check">
+            <img src="assets/teaser-cat-state-v20260619.png"
+              alt="WRBench cat-state teaser: the cat jumps onto the bed while the camera looks away, then WRBench checks the returned state">
           </div>
-          <p class="caption figure-caption-center">Figure 1. WRBench fixes a shared scene, event, and camera path, then
-            checks whether visible and returned evidence support the same evolving world state.</p>
+          <p class="caption figure-caption-center">Figure 1. In the cat-jumps-onto-bed probe, WRBench fixes the scene,
+            event, and camera path, then checks whether the cat remains on the bed when the camera returns instead of
+            jumping, splitting, vanishing, or resetting.</p>
         </div>
       </div>
     </section>
@@ -2223,40 +2225,42 @@
       <div class="container">
         <div class="section-header reveal" data-num="01">
           <p class="section-label">The gap</p>
-          <h2 class="section-title">A cup is knocked over off-screen. Does it <span class="title-accent">stay knocked
-              over?</span></h2>
+          <h2 class="section-title">A cat jumps onto the bed while the camera looks away. Is it <span
+              class="title-accent">on the bed when the camera returns?</span></h2>
         </div>
-        <p class="section-lead reveal">Point a camera at a cup on a table. <strong>Pan away.</strong> While it is
-          hidden,
-          the cup is knocked over. <strong>Pan back.</strong> A real world keeps the cup down — but evaluated video
-          generators often quietly stand it back up, move it, or smear it. On return the target must
-          <strong>preserve the event endpoint</strong>, not merely <strong>reappear plausibly</strong>. That is the
-          difference between a world model and a video renderer — and WRBench is built to catch it.
+        <p class="section-lead reveal">Start in a bedroom with a cat on the floor. <strong>Turn the camera away.</strong>
+          The prompt says the cat jumps onto the bed. <strong>Turn back.</strong> A real world keeps unfolding while
+          unobserved, much as the moon holds its orbit when no one is looking. Evaluated video generators instead show
+          distinct failures: the cat may jump to a new place, split into duplicates, vanish, or freeze and reset to its
+          abandoned state. On return the target must <strong>preserve the event endpoint</strong>, not merely
+          <strong>reappear plausibly</strong>. That is the difference between a world model and a video renderer — and
+          WRBench is built to catch it.
         </p>
 
         <div class="manifesto reveal">
           <article class="manifesto-step stage-visible">
             <span class="step-chip"><span class="step-num">Stage 01</span><span class="step-name">Visible</span></span>
-            <strong>Looks right <em class="step-em">while on screen</em></strong>
-            <p>While the cup is on screen, does it look correct? Visible quality is usually high — but it does
-              <strong>not predict a correct return</strong>, and can even reflect a test that is never posed.
+            <strong>Did the camera execute <em class="step-em">the interaction?</em></strong>
+            <p>Did the requested viewpoint change actually happen, creating a period when the target leaves observation?
+              Without that intervention, the hidden-state test has not been posed.
             </p>
-            <div class="step-foot"><span class="step-foot-chip mint">high, but not predictive</span></div>
+            <div class="step-foot"><span class="step-foot-chip mint">control before memory</span></div>
           </article>
           <article class="manifesto-step stage-access">
             <span class="step-chip"><span class="step-num">Stage 02</span><span class="step-name">Access</span></span>
-            <strong>Judgeable <em class="step-em">re-observation</em></strong>
-            <p>Did the camera leave and return so the hidden change can be re-checked? Only some paths create
-              <strong>judgeable hidden-and-returned evidence</strong>.
+            <strong>Did the scene stay <em class="step-em">continuous?</em></strong>
+            <p>While evidence is visible, does the scene remain identifiable and the event readable? Clean frames and
+              plausible motion matter, but they still do <strong>not predict a correct return</strong>.
             </p>
-            <div class="step-foot"><span class="step-foot-chip teal">path-dependent</span></div>
+            <div class="step-foot"><span class="step-foot-chip teal">visible evidence</span></div>
           </article>
           <article class="manifesto-step stage-return">
             <span class="step-chip"><span class="step-num">Stage 03</span><span class="step-name">Return</span></span>
-            <strong>Still right when the <em class="step-em">camera returns</em></strong>
-            <p>When the camera comes back, is the cup still knocked over? <strong>No model reliably maintains the event
-                endpoint</strong> — returned-state correctness is where all 23 fall short.</p>
-            <div class="step-foot"><span class="step-foot-chip rose">unbound endpoint</span></div>
+            <strong>Did the target advance <em class="step-em">while unseen?</em></strong>
+            <p>When the camera returns, is the cat on the bed? <strong>All 23 models behave like tracking shots</strong>,
+              resuming the target where it was abandoned rather than binding the returned state to the event set in
+              motion.</p>
+            <div class="step-foot"><span class="step-foot-chip rose">returned endpoint</span></div>
           </article>
         </div>
 
@@ -2272,9 +2276,9 @@
         <article class="video-case gap-demo reveal">
           <div class="video-case-head">
             <div>
-              <h3>See it — the knocked cup</h3>
-              <p>Kitchen cup knock · camera pans right-to-left (horizontal turn) · same event, two models. Both earn
-                judgeable re-observation; only one keeps the cup knocked over when the camera returns.</p>
+              <h3>One concrete instance — the knocked cup</h3>
+              <p>Kitchen cup knock · camera pans right-to-left (horizontal turn) · same diagnostic question, two models.
+                Both earn judgeable re-observation; only one keeps the knock-event endpoint when the camera returns.</p>
             </div>
           </div>
           <div class="video-grid">
@@ -2385,9 +2389,10 @@
           re-observation
           subset. Italic returned scores mark low re-observation support (fewer than 10 judgeable clips or support below
           10%). Cam Prec. is not applicable to prompt-only API rows.</p>
-        <div class="callout insight reveal">No model wins every dimension. <strong>HyDRA</strong> leads requested-camera
-          precision yet posts the weakest returned state; <strong>Gen3C</strong> leads re-observation support yet still
-          leaves a large in-place returned-state gap.
+        <div class="callout insight reveal">No model wins every dimension. <strong>Lingbot-World Act</strong> pairs high
+          visible spatial/state scores (<span class="stat-pill">0.874 / 0.719</span>) with the weakest requested-camera
+          precision (<span class="stat-pill">0.468</span>) among controllable local models. Strong visible tracking still
+          does not mean the requested camera, or the returned world state, is solved.
         </div>
       </div>
     </section>
@@ -2395,17 +2400,18 @@
     <section id="analysis" class="content-section">
       <div class="container">
         <div class="section-header reveal" data-num="05">
-          <p class="section-label">Evidence</p>
-          <h2 class="section-title">The data behind the <span class="title-accent">findings.</span></h2>
+          <p class="section-label">Current diagnosis</p>
+          <h2 class="section-title">Tracking shots expose the <span class="title-accent">returned-state gap.</span></h2>
         </div>
-        <p class="section-lead reveal">Read each figure as <strong>chart + plain-language meaning</strong>. Three
-          questions
-          run through the section:</p>
+        <p class="section-lead reveal">Read each figure as <strong>chart + plain-language meaning</strong>: a clean
+          tracking shot can bring the object back into view, but the returned state still breaks. Wan scaling
+          <strong>1.3B→14B</strong> lowers returned state <strong>0.66→0.62</strong>, while <strong>Lingbot-World
+            Act</strong> shows the visible-vs-camera split.</p>
         <div class="evidence-questions reveal">
           <article class="evidence-q">
             <span class="evidence-q-tag">Question 1 · Finding 1</span>
-            <strong>Does cleaner rendering buy a correct return?</strong>
-            <p>Visible quality and returned consistency barely move together — score the return, not the frame.</p>
+            <strong>Does the tracking shot buy a correct return?</strong>
+            <p>Visible quality and returned-state consistency barely move together — score the return, not the frame.</p>
           </article>
           <article class="evidence-q">
             <span class="evidence-q-tag">Question 2 · Finding 2</span>
@@ -2414,8 +2420,8 @@
           </article>
           <article class="evidence-q">
             <span class="evidence-q-tag">Question 3 · Findings 3–6</span>
-            <strong>What increment actually fixes it?</strong>
-            <p>Scale, architecture, and training mostly add re-observation support — not returned consistency.</p>
+            <strong>What increment actually closes the returned-state gap?</strong>
+            <p>Scale, architecture, and training mostly add re-observation support — not returned-state consistency.</p>
           </article>
         </div>
 
@@ -2428,19 +2434,22 @@
               </div>
             </div>
             <p class="caption figure-caption-center">Figure 4. Best score each viewpoint condition type reaches on every
-              diagnostic dimension.</p>
+              diagnostic dimension; frontiers expand on visible/support axes, not returned-state consistency.</p>
           </div>
           <div class="split-copy">
             <span class="kicker">The setup · how to read it</span>
-            <h3>A richer input buys access and clean frames, <em>not</em> a correct return.</h3>
+            <h3>A richer input buys access and clean frames, <em>not</em> returned-state consistency.</h3>
             <p class="read-as"><b>How to read this:</b> each spoke is one diagnostic dimension; the colored outline is
               the
               best score reached by a viewpoint condition type. A bigger outline = better on that axis.</p>
             <ul class="takeaways">
               <li>The <strong>re-observation support</strong> and <strong>visible-quality</strong> frontiers separate
                 sharply by condition type — more external footage pushes them out.</li>
-              <li>The <strong>returned-consistency</strong> frontier barely grows, and where it looks high it rests on
+              <li>The <strong>returned-state consistency</strong> frontier barely grows, and where it looks high it rests on
                 sparse re-observation support.</li>
+              <li><strong>Lingbot-World Act</strong> pairs high visible spatial/state
+                <span class="stat-pill">0.874 / 0.719</span> with requested-camera precision
+                <span class="stat-pill down">0.468</span>, exposing the visible-vs-camera split.</li>
               <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> handing a model more of the
                 already-seen scene mostly lets it <em>look back</em>, not get the hidden outcome <em>right</em>.</li>
             </ul>
@@ -2451,14 +2460,16 @@
           <div class="split-media">
             <span class="figure-label">Figure · metric correlations</span>
             <div class="figure-frame">
-              <img src="assets/corr-heatmap.png" alt="Metric correlation heatmap">
+              <img src="assets/corr-heatmap-v20260619.png"
+                alt="Versioned metric correlation heatmap for visible and returned WRBench dimensions">
             </div>
-            <p class="caption figure-caption-center">Model-level correlations among the diagnostic metrics (23 rows).
+            <p class="caption figure-caption-center">Figure 5. Model-level correlations among the diagnostic metrics
+              (23 rows), with visible and returned consistency forming separate blocks.
             </p>
           </div>
           <div class="split-copy">
             <span class="kicker">Finding 1 · dimensions</span>
-            <h3>Measure consistency on return, <em>not</em> on frame quality.</h3>
+            <h3>Measure returned-state consistency, <em>not</em> frame quality.</h3>
             <p class="read-as"><b>How to read this:</b> darker = stronger correlation. If two metrics rose together,
               image
               quality would predict a correct return. They don’t.</p>
@@ -2471,7 +2482,7 @@
               <li>Re-observation support sits apart and even <em>inverts</em>, down to
                 <span class="stat-pill down">−0.42</span> with visible spatial.
               </li>
-              <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> score <strong>returned
+              <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> score <strong>returned-state
                   consistency</strong> — visible quality is already a solved-looking block on its own.</li>
             </ul>
           </div>
@@ -2481,10 +2492,10 @@
           <div class="stage-row reveal">
             <div class="stage-row-copy">
               <span class="kicker">Finding 1 · mechanism</span>
-              <h3>Camera motion decides whether the return test <em>runs</em> — not its result.</h3>
+              <h3>Camera motion decides whether the return test <em>runs</em> — not whether the returned state is right.</h3>
               <p class="read-as"><b>How to read this:</b> each group of bars is a camera condition. Watch how
                 re-observation
-                support grows while returned-consistency bars stay flat.</p>
+                support grows while returned-state consistency bars stay flat.</p>
               <ul class="takeaways">
                 <li>Panning the camera swings re-observation support from near zero to
                   <span class="stat-pill up">~40%</span> — about two orders of magnitude.
@@ -2498,11 +2509,11 @@
             </div>
             <div class="stage-row-fig">
               <div class="figure-frame">
-                <img src="assets/camera-bars.png" alt="Camera motion versus re-observation support">
+                <img src="assets/camera-bars-v20260619.png"
+                  alt="Versioned camera-condition bar chart comparing re-observation support and returned scores">
               </div>
-              <p class="caption figure-caption-center">Static hold vs. horizontal camera pan: re-observation support
-                moves,
-                returned scores do not.</p>
+              <p class="caption figure-caption-center">Figure 6. Static hold vs. horizontal camera pan: re-observation
+                support moves, returned-state consistency does not.</p>
             </div>
           </div>
 
@@ -2530,9 +2541,10 @@
           </ul>
           <div class="figure-frame">
             <div class="figure-scroll">
-              <img src="assets/event-factor.png" alt="Event factor boxplots under the 2x2 design">
+              <img src="assets/event-factor-v20260619.png"
+                alt="Versioned event-factor boxplots under the two-by-two spatial and state design">
             </div>
-            <p class="caption figure-caption-center">Metrics under a 2×2 event design; stars mark paired Wilcoxon
+            <p class="caption figure-caption-center">Figure 7. Metrics under a 2×2 event design; stars mark paired Wilcoxon
               significance.</p>
           </div>
         </div>
@@ -2555,8 +2567,9 @@
               correct,
               not whether the test is passed.
             </li>
-            <li><strong>Scale (F4):</strong> bigger backbones add re-observation support while returned state stays in a
-              fixed <span class="stat-pill">0.62–0.66</span> band.
+            <li><strong>Scale (F4):</strong> bigger Wan backbones add re-observation support, but scaling
+              <span class="stat-pill">1.3B→14B</span> even lowers returned state from
+              <span class="stat-pill">0.66→0.62</span>.
             </li>
             <li><strong>Architecture (F5):</strong> carriers store <em>where</em> to look back, not <em>what</em>
               changed
@@ -2567,21 +2580,22 @@
           <ul class="takeaways" style="margin-top:14px;margin-bottom:26px">
             <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> every tested increment mostly
               moves
-              <strong>re-observation support</strong> or visible quality — not <strong>returned consistency</strong>.
+              <strong>re-observation support</strong> or visible quality — not <strong>returned-state consistency</strong>.
             </li>
           </ul>
           <div class="figure-grid-3">
             <div class="figure-frame">
-              <img src="assets/series-scale.png" alt="Wan series scale diagnostics">
-              <p class="caption figure-caption-center">A · scale / version</p>
+              <img src="assets/series-scale-v20260619.png" alt="Versioned Wan series scale diagnostics">
+              <p class="caption figure-caption-center">Figure 8A · Wan scale / version diagnostics</p>
             </div>
             <div class="figure-frame">
-              <img src="assets/series-increments.png" alt="Wan architecture increment diagnostics">
-              <p class="caption figure-caption-center">B · architecture</p>
+              <img src="assets/series-increments-v20260619.png"
+                alt="Versioned Wan architecture increment diagnostics">
+              <p class="caption figure-caption-center">Figure 8B · Wan architecture diagnostics</p>
             </div>
             <div class="figure-frame">
-              <img src="assets/series-training.png" alt="Wan training signal diagnostics">
-              <p class="caption figure-caption-center">C · training</p>
+              <img src="assets/series-training-v20260619.png" alt="Versioned Wan training signal diagnostics">
+              <p class="caption figure-caption-center">Figure 8C · Wan training-signal diagnostics</p>
             </div>
           </div>
         </div>
@@ -2743,7 +2757,7 @@
         <div class="bibtex-box reveal">
           <button class="copy-btn" type="button" onclick="copyBibtex(this)">Copy</button>
           <pre><code>@article{lu2026wrbench,
-  title={World Models Need More Than Static Scene},
+  title={Current World Models Lack a Persistent State Core},
   author={Jinpeng Lu and Dexu Zhu and Haoyuan Shi and Yinda Chen and Linghan Cai and Guo Tang and Jie Cao and Yong Dai},
   year={2026},
   note={Preprint},
@@ -2755,7 +2769,7 @@
 
     <footer class="footer reveal">
       <div class="container" style="display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;width:100%">
-        <span>WRBench · World Models Need More Than Static Scene · preprint</span>
+        <span>WRBench · Current World Models Lack a Persistent State Core · preprint</span>
         <span><a href="https://github.com/JinPLu/WRBench">GitHub</a> · <a
             href="mailto:jinplu@mail.ustc.edu.cn">Contact</a></span>
       </div>
@@ -2777,7 +2791,7 @@
       {
         tag: "Finding 01",
         head: "World consistency must be measured on return, not read off frame quality",
-        body: "Visible-fidelity and re-observation-access scores form their own correlated blocks but predict <strong>returned-state correctness</strong> only weakly, so it is a distinct capability that benchmarks and models must target directly rather than infer from image quality or camera precision."
+        body: "Visible-fidelity and re-observation-access scores form their own correlated tracking shot blocks but predict <strong>returned-state correctness</strong> only weakly, so returned-state consistency is a distinct capability that benchmarks and models must target directly rather than infer from image quality or camera precision."
       },
       {
         tag: "Finding 02",
@@ -2792,7 +2806,7 @@
       {
         tag: "Finding 04",
         head: "Regular video-supervised scaling will not deliver world-state evolution, so it has to be designed in",
-        body: "Larger Wan backbones add re-observation access while the 2.1→2.2 upgrade adds visible fidelity, which are the observable axes such training already optimizes, yet conditional <strong>returned state</strong>, scored only on the clips where the object is re-observed, stays in a fixed band, so endpoint persistence is a target for architecture and training rather than for more parameters or standard video data."
+        body: "Larger Wan backbones add re-observation access while the 2.1→2.2 upgrade adds visible fidelity, which are the observable axes such training already optimizes, yet scaling Wan 1.3B→14B lowers conditional <strong>returned state</strong> from 0.66→0.62 on the clips with judgeable returned evidence, so endpoint persistence is a target for architecture and training rather than for more parameters or standard video data."
       },
       {
         tag: "Finding 05",
