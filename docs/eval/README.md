@@ -1,7 +1,7 @@
 # WRBench evaluation in WRBench
 
 WRBench ships the official **WRBench** diagnostic evaluation toolkit described in
-*World Models Need More Than Static Scene* (preprint). Evaluation is organized
+*Current World Models Lack a Persistent State Core* (preprint). Evaluation is organized
 as six separable dimensions plus re-observation support for returned-state metrics.
 
 ## Mental model

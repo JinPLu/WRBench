@@ -8,7 +8,7 @@
 
 ---
 
-> **World Models Need More Than Static Scene**  
+> **Current World Models Lack a Persistent State Core**
 > *Preprint*
 
 ---
@@ -286,7 +286,7 @@ Two files + one import line. See [docs/adding-a-model.md](docs/adding-a-model.md
 
 ```bibtex
 @article{wrbench2026,
-  title   = {World Models Need More Than Static Scene},
+  title   = {Current World Models Lack a Persistent State Core},
   author  = {Jinpeng Lu and Dexu Zhu and Haoyuan Shi and Yinda Chen and Linghan Cai and Guo Tang and Jie Cao and Yong Dai},
   year    = {2026},
   note    = {Preprint},

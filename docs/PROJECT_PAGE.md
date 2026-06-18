@@ -1,6 +1,6 @@
 # WRBench project page
 
-Static site for **World Models Need More Than Static Scene** (WRBench),
+Static site for **Current World Models Lack a Persistent State Core** (WRBench),
 served by **GitHub Pages** from this `docs/` folder at
 <https://jinplu.github.io/WRBench/>.
 

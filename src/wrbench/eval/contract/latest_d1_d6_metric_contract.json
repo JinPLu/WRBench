@@ -271,7 +271,7 @@
     "oov_gate_update_policy": "shared re-observation judgeability gate for returned D5/D6",
     "oov_null_scores": "allowed only for declared D5/D6 not-applicable rows",
     "paper_facing_ready_requires_no_pending_correction": true,
-    "paper_reference": "WRBench: World Models Need More Than Static Scene (preprint)"
+    "paper_reference": "WRBench: Current World Models Lack a Persistent State Core (preprint)"
   },
   "schema_version": "wrbench_latest_d1_d6_metrics_v3",
   "table_hyperparameters": {

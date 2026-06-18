@@ -22,7 +22,7 @@ WORLDSTATE_PROMPT_MODE = "visible_probe_logprob_slot_parse"
 WORLDSTATE_D5D6_NATIVE_PROMPT_MODE = "returned_probe_logprob_native_d5d6"
 WORLDSTATE_GATE_NAME = "reobservation_judgeability_gate"
 WORLDSTATE_GATE_FIELD = "runtime_v2_evidence_shared_oov_applicable"
-PAPER_REFERENCE = "WRBench: World Models Need More Than Static Scene (preprint)"
+PAPER_REFERENCE = "WRBench: Current World Models Lack a Persistent State Core (preprint)"
 CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
     "D1": {
         "promotion_status": PAPER_FACING_READY_STATUS,
