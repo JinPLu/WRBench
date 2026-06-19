@@ -28,13 +28,7 @@
   "default_height": 480,
   "default_width": 832,
   "execution_contract": {
-    "cli_flag_parameters": [
-      {
-        "flag": "--i2v",
-        "parameter": "i2v",
-        "required_value": true
-      }
-    ],
+    "cli_flag_parameters": [],
     "cli_parameter_order": [
       [
         "--config_path",
@@ -78,7 +72,7 @@
       "fps": 16,
       "guidance_scale": 3.0,
       "mode": "causal_dmd",
-      "note": "The 4-step causal-forcing DMD path is the upstream quick-start/default for Wan Action2V camera inference (run_infer_causal_camera.sh), not a low-step benchmark workaround.",
+      "note": "The 4-step causal-forcing DMD path is the upstream quick-start/default for Wan Action2V camera inference.",
       "num_inference_steps": 4,
       "timestep_shift": 5.0,
       "use_camera": true,
@@ -97,7 +91,6 @@
       "config_path": "Wan21/configs/causal_forcing_dmd_camera.yaml",
       "guidance_scale": 3.0,
       "hf_revision": "21bd74da43b5a061c0b8ff277515088ccd2c798b",
-      "i2v": true,
       "mode": "causal_dmd",
       "model": "MIN-Lab/minWM",
       "num_inference_steps": 4,
@@ -117,7 +110,7 @@
       "camera_control_is_native_motion_tokens": true,
       "no_weight_download_in_dry_run": true,
       "record_materialized_example_json_for_non_dry_run": true,
-      "requires_first_frame_image": true,
+      "requires_first_frame_image": false,
       "requires_prompt": true,
       "requires_use_camera": true,
       "target_c2w_is_model_effective": false

@@ -285,6 +285,12 @@ class MinWMHyAction2VAdapter:
 class MinWMWanAction2VAdapter:
     """minWM with the Wan 2.1 Action2V backbone.
 
+    Same native-motion-token camera control as the HY backbone; reuses the
+    token-mapping helpers above. Wan21/wan_inference.py reads prompts from
+    --data_path and per-sample tokens from --trajectory_path. Camera control runs
+    T2V-only: the DMD camera checkpoint uses num_frame_per_block=4, and upstream
+    i2v needs a frame-wise model launched without torch.distributed, so first-frame
+    conditioning is unsupported here.
     """
 
     name = "minwm_wan_action2v"
@@ -349,7 +355,7 @@ class MinWMWanAction2VAdapter:
                     "data_path": str(data_path),
                     "trajectory_path": str(trajectory_path),
                     "caption_field": "WRBench dynamic-event prompt string (one per --data_path line)",
-                    "image_field": "first-frame image supplied via Wan i2v dataset dir (--i2v)",
+                    "image_field": "not consumed: Wan Action2V DMD camera checkpoint is T2V-only (no i2v)",
                     "trajectory_field": "minWM native motion token string (one per --trajectory_path line)",
                     "trajectory_string": trajectory_string,
                     "token_mapping_rule": mapping_rule,
@@ -374,7 +380,7 @@ class MinWMWanAction2VAdapter:
                 "command_template": command_template,
             },
             target_trajectory=target,
-            official_camera_entrypoint="Wan21/wan_inference.py --i2v with per-sample tokens in --trajectory_path",
+            official_camera_entrypoint="Wan21/wan_inference.py (T2V causal rollout) with per-sample tokens in --trajectory_path",
             coordinate_notes=(
                 "minWM Wan Action2V does not consume WRBench C2W directly. WRBench camera families are approximated "
                 "as native minWM motion tokens: a/d lateral translation, w/s forward/back, j/l yaw, i/k pitch."
