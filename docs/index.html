@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>WRBench | Current World Models Lack a Persistent State Core</title>
   <meta name="description"
-    content="WRBench tests whether video world models remember what changed while the camera looked away. 23 video generators, 9,600 videos, six checks, and returned-state evidence.">
+    content="WRBench tests whether video world models remember what changed while the camera looked away. 23 video generators, 9,600 videos, six checks, and re-observation evidence.">
   <meta name="robots" content="index, follow">
   <link rel="canonical" href="https://jinplu.github.io/WRBench/">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -2427,16 +2427,16 @@
           </article>
           <article class="metric-guide">
             <div class="metric-guide-tag">Stage 3</div>
-            <strong>Ret. spatial / state</strong>
+            <strong>Reobs. spatial / state</strong>
             <span class="metric-formula">scored only when the return is judgeable</span>
-            <p><strong>Returned consistency</strong> — the outcome WRBench is designed to measure (2,073 judgeable
+            <p><strong>Re-observation consistency</strong> — the outcome WRBench is designed to measure (2,073 judgeable
               clips).</p>
           </article>
         </div>
         <div class="table-wrap reveal" id="results-table-wrap"></div>
-        <p class="table-note reveal">† Ret. spatial and Ret. state are conditional means over the judgeable
-          re-observation subset. Avg. is the paper's mean of Cam Align., Integ., Vis. spatial/state, and Ret.
-          spatial/state, excluding re-observation support. Italic returned scores mark low re-observation support
+        <p class="table-note reveal">† Reobs. spatial and Reobs. state are conditional means over the judgeable
+          re-observation subset. Avg. is the paper's mean of Cam Align., Integ., Vis. spatial/state, and Reobs.
+          spatial/state, excluding re-observation support. Italic re-observation scores mark low re-observation support
           (fewer than 10 judgeable clips or support below 10%). Cam Prec. is not applicable to prompt-only API rows.</p>
         <div class="callout insight reveal">No model wins every dimension. <strong>Lingbot-World Act</strong> pairs high
           visible spatial/state scores (<span class="stat-pill">0.874 / 0.719</span>) with the weakest requested-camera
@@ -2450,7 +2450,7 @@
       <div class="container">
         <div class="section-header reveal" data-num="05">
           <p class="section-label">Diagnosis</p>
-          <h2 class="section-title">Tracking shots expose the <span class="title-accent">returned-state gap.</span></h2>
+          <h2 class="section-title">Tracking shots expose the <span class="title-accent">re-observation gap.</span></h2>
         </div>
         <p class="section-lead reveal">The diagnosis is not that one model loses. The hard part is specific: a model may
           show the target again but still fail to keep the off-screen change. In-place changes such as folding, tipping,
@@ -2459,7 +2459,7 @@
           <article class="evidence-q">
             <span class="evidence-q-tag">Question 1 · Finding 1</span>
             <strong>Does the tracking shot buy a correct return?</strong>
-            <p>Visible quality and returned-state consistency barely move together — score the return, not the frame.</p>
+            <p>Visible quality and re-observation consistency barely move together — score the return, not the frame.</p>
           </article>
           <article class="evidence-q">
             <span class="evidence-q-tag">Question 2 · Finding 2</span>
@@ -2468,8 +2468,8 @@
           </article>
           <article class="evidence-q">
             <span class="evidence-q-tag">Question 3 · Findings 3–6</span>
-            <strong>What increment actually closes the returned-state gap?</strong>
-            <p>Scale, architecture, and training mostly add re-observation support — not returned-state consistency.</p>
+            <strong>What increment actually closes the re-observation gap?</strong>
+            <p>Scale, architecture, and training mostly add re-observation support — not re-observation consistency.</p>
           </article>
         </div>
 
@@ -2482,18 +2482,18 @@
               </div>
             </div>
             <p class="caption figure-caption-center">Figure 4. Best score each viewpoint condition type reaches on every
-              diagnostic dimension; frontiers expand on visible/support axes, not returned-state consistency.</p>
+              diagnostic dimension; frontiers expand on visible/support axes, not re-observation consistency.</p>
           </div>
           <div class="split-copy">
             <span class="kicker">The setup · how to read it</span>
-            <h3>A richer input buys access and clean frames, <em>not</em> returned-state consistency.</h3>
+            <h3>A richer input buys access and clean frames, <em>not</em> re-observation consistency.</h3>
             <p class="read-as"><b>How to read this:</b> each spoke is one diagnostic dimension; the colored outline is
               the
               best score reached by a viewpoint condition type. A bigger outline = better on that axis.</p>
             <ul class="takeaways">
               <li>The <strong>re-observation support</strong> and <strong>visible-quality</strong> frontiers separate
                 sharply by condition type — more external footage pushes them out.</li>
-              <li>The <strong>returned-state consistency</strong> frontier barely grows, and where it looks high it rests on
+              <li>The <strong>re-observation consistency</strong> frontier barely grows, and where it looks high it rests on
                 sparse re-observation support.</li>
               <li><strong>Lingbot-World Act</strong> pairs high visible spatial/state
                 <span class="stat-pill">0.874 / 0.719</span> with requested-camera precision
@@ -2512,12 +2512,12 @@
                 alt="Paper metric correlation heatmap for visible and re-observed WRBench dimensions">
             </div>
             <p class="caption figure-caption-center">Figure 5. Model-level correlations among the diagnostic metrics
-              (23 rows), with visible and returned consistency forming separate blocks.
+              (23 rows), with visible and re-observation consistency forming separate blocks.
             </p>
           </div>
           <div class="split-copy">
             <span class="kicker">Finding 1 · dimensions</span>
-            <h3>Measure returned-state consistency, <em>not</em> frame quality.</h3>
+            <h3>Measure re-observation consistency, <em>not</em> frame quality.</h3>
             <p class="read-as"><b>How to read this:</b> darker = stronger correlation. If two metrics rose together,
               image
               quality would predict a correct return. They don’t.</p>
@@ -2530,7 +2530,7 @@
               <li>Re-observation support sits apart and even <em>inverts</em>, down to
                 <span class="stat-pill down">−0.42</span> with visible spatial.
               </li>
-              <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> score <strong>returned-state
+              <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> score <strong>re-observation
                   consistency</strong> — visible quality is already a solved-looking block on its own.</li>
             </ul>
           </div>
@@ -2540,10 +2540,10 @@
           <div class="stage-row reveal">
             <div class="stage-row-copy">
               <span class="kicker">Finding 1 · mechanism</span>
-              <h3>Camera motion decides whether the return test <em>runs</em> — not whether the returned state is right.</h3>
+              <h3>Camera motion decides whether the return test <em>runs</em> — not whether D5/D6 are right.</h3>
               <p class="read-as"><b>How to read this:</b> each group of bars is a camera condition. Watch how
                 re-observation
-                support grows while returned-state consistency bars stay flat.</p>
+                support grows while re-observation consistency bars stay flat.</p>
               <ul class="takeaways">
                 <li>Panning the camera swings re-observation support from near zero to
                   <span class="stat-pill up">~40%</span> — about two orders of magnitude.
@@ -2561,7 +2561,7 @@
                   alt="Paper camera-condition bar chart comparing re-observation support and re-observed scores">
               </div>
               <p class="caption figure-caption-center">Figure 6. Static hold vs. horizontal camera pan: re-observation
-                support moves, returned-state consistency does not.</p>
+                support moves, re-observation consistency does not.</p>
             </div>
           </div>
 
@@ -2600,7 +2600,7 @@
         <div class="analysis-stack stack-purple reveal">
           <div class="analysis-stack-head">
             <span class="kicker">Findings 3–6 · does anything fix it?</span>
-              <h3>No tested increment of scale, architecture, or training closes the <em>returned-state gap.</em></h3>
+              <h3>No tested increment of scale, architecture, or training closes the <em>re-observation gap.</em></h3>
               <p class="read-as"><b>How to read this:</b> the left panel asks which model inputs make the return visible.
                 The Wan-family panels then vary scale, architecture, and training signal to ask whether any of them
                 preserve the hidden outcome.
@@ -2626,7 +2626,7 @@
           <ul class="takeaways" style="margin-top:14px;margin-bottom:26px">
             <li class="takeaway-li"><strong class="takeaway-label">Takeaway:</strong> every tested increment mostly
               moves
-              <strong>re-observation support</strong> or visible quality — not <strong>returned-state consistency</strong>.
+              <strong>re-observation support</strong> or visible quality — not <strong>re-observation consistency</strong>.
             </li>
           </ul>
           <div class="figure-grid-3">
@@ -2736,7 +2736,7 @@
                 <img src="assets/overview.png" alt="WRBench method overview">
               </div>
               <p class="caption figure-caption-center">WRBench pipeline: camera following, visible quality, visible
-                consistency, re-observation, and returned consistency are measured separately.</p>
+                consistency, re-observation support, and re-observation consistency are measured separately.</p>
             </div>
           </div>
         </div>
@@ -2774,7 +2774,7 @@
         <p class="table-note reveal">Visual integrity uses a separate 190-pair holdout. Rev. counts opposite-direction
           threshold decisions; thresholds are fixed before reporting. Disagreement appears mainly as ties around small
           differences, not systematic reversal.</p>
-        <div class="callout reveal">For returned dimensions, annotators first decide whether hidden-and-returned
+        <div class="callout reveal">For re-observation dimensions, annotators first decide whether hidden-and-returned
           evidence
           is judgeable — human-aligned judgeability makes the conditional denominator meaningful and keeps
           re-observation
@@ -2829,14 +2829,14 @@
       { id: "Support", title: "Reobs. support", body: "<strong>Re-observation support</strong> — how often the hidden target comes back in judgeable form. Visibility, not correctness." },
       { id: "D3", title: "Vis. spatial", body: "<strong>Visible spatial consistency</strong> while the target remains on screen." },
       { id: "D4", title: "Vis. state", body: "<strong>Visible state consistency</strong> for action and state evidence while observable." },
-      { id: "D5-D6", title: "Ret. spatial/state", body: "<strong>Returned spatial and state consistency</strong>, scored only after judgeable re-observation (2,073 clips)." }
+      { id: "D5-D6", title: "Reobs. spatial/state", body: "<strong>Re-observation spatial and event-state consistency</strong>, scored only after judgeable re-observation (2,073 clips)." }
     ];
 
     const findings = [
       {
         tag: "Finding 01",
         head: "World consistency must be measured on return, not read off frame quality",
-        body: "Readable frames and a successful return into view do not reliably predict <strong>returned-state correctness</strong>. The returned state has to be measured directly."
+        body: "Readable frames and a successful return into view do not reliably predict <strong>re-observation correctness</strong>. D5/D6 have to be measured directly."
       },
       {
         tag: "Finding 02",
@@ -2851,7 +2851,7 @@
       {
         tag: "Finding 04",
         head: "Regular video-supervised scaling will not deliver world-state evolution, so it has to be designed in",
-        body: "Larger Wan backbones make it easier to see the target again, and newer versions improve visible quality. But scaling 1.3B→14B lowers conditional <strong>returned state</strong> from 0.66→0.62, so persistence is not solved by scale alone."
+        body: "Larger Wan backbones make it easier to see the target again, and newer versions improve visible quality. But scaling 1.3B→14B lowers conditional <strong>re-observation state</strong> from 0.66→0.62, so persistence is not solved by scale alone."
       },
       {
         tag: "Finding 05",
@@ -2894,10 +2894,10 @@
         title: "A · Camera direction changes what can be judged",
         subtitle: "Wan-Fun 2.1 · kitchen bowl placement · left-to-right vs right-to-left camera motion",
         caseFrame: "assets/cases/case_direction_wanfun21_kitchen_bowl_spatial_lr_vs_rl.png",
-        conclusion: "Camera pan direction decides whether <strong>returned evidence exists</strong>; it does not by itself solve returned-state correctness.",
+        conclusion: "Camera pan direction decides whether <strong>re-observation evidence exists</strong>; it does not by itself solve re-observation correctness.",
         panels: [
           { model: "Wan-Fun 2.1 · pan left-to-right", video: "videos/case_a_yaw_lr.mp4", tone: "neutral", badge: "No return test", note: "Subject stays with the camera, so there is no hidden-then-returned state to judge." },
-          { model: "Wan-Fun 2.1 · pan right-to-left", video: "videos/case_a_yaw_rl.mp4", tone: "pass", badge: "Returned state 0.71", note: "Subject leaves and re-enters; judgeable returned evidence." }
+          { model: "Wan-Fun 2.1 · pan right-to-left", video: "videos/case_a_yaw_rl.mp4", tone: "pass", badge: "Reobs. state 0.71", note: "Subject leaves and re-enters; judgeable returned evidence." }
         ]
       },
       {
@@ -2906,8 +2906,8 @@
         caseFrame: "assets/cases/case_access_returned_consistency_loadingdock_place_spatia_vs_inspatio.png",
         conclusion: "Both rows create judgeable re-observation, but only <strong>InSpatio</strong> returns the box correctly placed on the pallet.",
         panels: [
-          { model: "Spatia", video: "videos/case_b_spatia.mp4", tone: "fail", badge: "Ret. spatial 0.68 · Ret. state 0.44", note: "Box returns mislocated and malformed." },
-          { model: "InSpatio World 14B", video: "videos/case_b_inspatio.mp4", tone: "pass", badge: "Ret. spatial 0.89 · Ret. state 0.82", note: "Box returns correctly placed on the pallet." }
+          { model: "Spatia", video: "videos/case_b_spatia.mp4", tone: "fail", badge: "Reobs. spatial 0.68 · Reobs. state 0.44", note: "Box returns mislocated and malformed." },
+          { model: "InSpatio World 14B", video: "videos/case_b_inspatio.mp4", tone: "pass", badge: "Reobs. spatial 0.89 · Reobs. state 0.82", note: "Box returns correctly placed on the pallet." }
         ]
       },
       {
@@ -2916,8 +2916,8 @@
         caseFrame: "assets/cases/case_stateonly_apartment_sofa_wanfun_vs_wan27.png",
         conclusion: "The clip pair is a readable state-only contrast; the broader paper claim comes from the event-factor analysis, where in-place changes are consistently harder than relocation.",
         panels: [
-          { model: "Wan-Fun 2.2-A14B", video: "videos/case_c_wanfun.mp4", tone: "fail", badge: "Returned state 0.57", note: "Subject returns crouched away from the sofa." },
-          { model: "Wan2.7 I2V", video: "videos/case_c_wan27.mp4", tone: "pass", badge: "Returned state 0.79", note: "Subject returns seated at the sofa." }
+          { model: "Wan-Fun 2.2-A14B", video: "videos/case_c_wanfun.mp4", tone: "fail", badge: "Reobs. state 0.57", note: "Subject returns crouched away from the sofa." },
+          { model: "Wan2.7 I2V", video: "videos/case_c_wan27.mp4", tone: "pass", badge: "Reobs. state 0.79", note: "Subject returns seated at the sofa." }
         ]
       }
     ];
@@ -2946,7 +2946,7 @@
       {
         title: "High scores, frame-level failures",
         image: "assets/forensics/forensic_highscore_metricparadox.png",
-        body: "Top camera execution can coincide with the <strong>weakest returned state</strong>; highest re-observation support can degrade the scene as the camera moves."
+        body: "Top camera execution can coincide with the <strong>weakest re-observation state</strong>; highest re-observation support can degrade the scene as the camera moves."
       }
     ];
 
@@ -2992,8 +2992,8 @@
       { key: "reobs", label: "Reobs. support", pct: true },
       { key: "visSpatial", label: "Vis. spatial", pct: false },
       { key: "visState", label: "Vis. state", pct: false },
-      { key: "retSpatial", label: "Ret. spatial†", pct: false, conditional: true },
-      { key: "retState", label: "Ret. state†", pct: false, conditional: true },
+      { key: "retSpatial", label: "Reobs. spatial†", pct: false, conditional: true },
+      { key: "retState", label: "Reobs. state†", pct: false, conditional: true },
       { key: "avg", label: "Avg.", pct: false }
     ];
 
@@ -3181,8 +3181,8 @@
       { metric: "Visual integrity", ac1: 0.877, rho: 0.709, n: 190, rev: null },
       { metric: "Visible spatial", ac1: 0.788, rho: 0.386, n: 228, rev: "0 / 228" },
       { metric: "Visible event-state", ac1: 0.790, rho: 0.484, n: 229, rev: "0 / 229" },
-      { metric: "Returned spatial", ac1: 0.875, rho: 0.667, n: 136, rev: "1 / 136" },
-      { metric: "Returned event-state", ac1: 0.937, rho: 0.660, n: 136, rev: "8 / 136" }
+      { metric: "Re-observation spatial", ac1: 0.875, rho: 0.667, n: 136, rev: "1 / 136" },
+      { metric: "Re-observation event-state", ac1: 0.937, rho: 0.660, n: 136, rev: "8 / 136" }
     ];
 
     function renderCalibrationTable() {

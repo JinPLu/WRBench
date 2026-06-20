@@ -2,7 +2,7 @@
 
 WRBench ships the official **WRBench** diagnostic evaluation toolkit described in
 *Current World Models Lack a Persistent State Core* (preprint). Evaluation is organized
-as six separable dimensions plus re-observation support for returned-state metrics.
+as six separable dimensions plus re-observation support for D5/D6.
 
 ## Mental model
 
@@ -25,8 +25,8 @@ compile (numpy, no config)  →  generate (optional, GPU)  →  evaluate (option
 | D3 | Visible spatial consistency | `D3_spatial_in` | `vlm_spatial_fidelity` |
 | D4 | Visible state consistency | `D4_state_in` | `vlm_state_fidelity` |
 | (gate) | Re-observation support | `reobservation_support` | judgeability gate rate |
-| D5 | Returned spatial consistency | `D5_spatial_oov` | `vlm_spatial_reasoning` |
-| D6 | Returned event-state consistency | `D6_state_oov` | `vlm_state_reasoning` |
+| D5 | Re-observation spatial consistency | `D5_spatial_oov` | `vlm_spatial_reasoning` |
+| D6 | Re-observation event-state consistency | `D6_state_oov` | `vlm_state_reasoning` |
 
 **D1 has two separate diagnostics** (never merged):
 
@@ -87,5 +87,5 @@ src/wrbench/eval/
 
 - D3–D6 requires multi-GB Qwen weights and a CUDA venv with torch/transformers/decord.
 - D1 pose backend defaults to VGGT-Omega; configure `vggt_checkpoint` as the `.pt` file.
-- Returned D5/D6 scores are conditional on re-observation support (judgeability gate).
+- D5/D6 scores are conditional on re-observation support (judgeability gate).
 - WRBench reports a **diagnostic profile**, not a single scalar leaderboard score.

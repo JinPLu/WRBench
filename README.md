@@ -35,7 +35,7 @@ Most video-generation benchmarks measure **single-scene quality** — aesthetics
 
 **WRBench** asks: if you look away and come back, is the world still there?
 
-We evaluate models along **six separable diagnostic dimensions**, grouped by whether content is currently in view (*visible*) or had left the frame (*returned*):
+We evaluate models along **six separable diagnostic dimensions**, grouped by whether content is currently in view (*visible*) or is judged after re-observation:
 
 | # | Dimension | Short name | What it measures |
 |---|-----------|------------|-----------------|
@@ -44,8 +44,8 @@ We evaluate models along **six separable diagnostic dimensions**, grouped by whe
 | D2 | Visual integrity | — | Is every frame free of collapse, blur, or distortion? |
 | D3 | Visible spatial consistency | — | Do spatial relations hold while objects are in view? |
 | D4 | Visible state consistency | — | Do object states remain coherent while in view? |
-| D5 | Returned spatial consistency | — | Do spatial relations hold after re-observation? |
-| D6 | Returned event-state consistency | — | Do event outcomes persist after re-observation? |
+| D5 | Re-observation spatial consistency | — | Do spatial relations hold after re-observation? |
+| D6 | Re-observation event-state consistency | — | Do event outcomes persist after re-observation? |
 
 D5 and D6 require **re-observation support** — the model must actually bring content back into frame before they can be scored.
 
@@ -57,7 +57,7 @@ The evaluation uses the **Natural-25** scene/event grid: 25 scene types × 4 eve
 
 Results for 23 models on the WRBench diagnostic profile (9,600 generated videos, 2,073 re-observation-supported rows for D5/D6). Full CSV at `src/wrbench/data/results/wrbench_23model_results.csv`.
 
-> **D5/D6 are scored on shared judgeable re-observation rows**: the model must bring the relevant content back into frame before returned spatial or event-state consistency can be checked. Models without a D1-CamPrec score use API prompt-camera control only.
+> **D5/D6 are scored on shared judgeable re-observation rows**: the model must bring the relevant content back into frame before re-observation spatial or event-state consistency can be checked. Models without a D1-CamPrec score use API prompt-camera control only.
 
 <details open>
 <summary><b>Camera-trained and video-to-video models</b></summary>
@@ -228,8 +228,8 @@ WRBench is designed to be *separable*: each dimension can be scored independentl
 | D2 | Visual integrity | DINOv2 local/global features | — |
 | D3 | Visible spatial consistency | Qwen-3.5B VLM | — |
 | D4 | Visible state consistency | Qwen-3.5B VLM | — |
-| D5 | Returned spatial consistency | Qwen-3.5B VLM | Re-observation support |
-| D6 | Returned event-state consistency | Qwen-3.5B VLM | Re-observation support |
+| D5 | Re-observation spatial consistency | Qwen-3.5B VLM | Re-observation support |
+| D6 | Re-observation event-state consistency | Qwen-3.5B VLM | Re-observation support |
 
 Detailed scorer profiles and configuration: [docs/eval/README.md](docs/eval/README.md).
 

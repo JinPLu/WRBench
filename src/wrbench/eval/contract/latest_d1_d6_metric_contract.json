@@ -212,7 +212,7 @@
     {
       "allow_null_score": true,
       "dimension_id": "D5",
-      "display_name": "Returned spatial consistency (D5)",
+      "display_name": "Re-observation spatial consistency (D5)",
       "fallback_score_fields": [],
       "forbidden_fallback_fields": [],
       "hyperparameters": {
@@ -238,7 +238,7 @@
     {
       "allow_null_score": true,
       "dimension_id": "D6",
-      "display_name": "Returned event-state consistency (D6)",
+      "display_name": "Re-observation event-state consistency (D6)",
       "fallback_score_fields": [],
       "forbidden_fallback_fields": [],
       "hyperparameters": {
@@ -265,10 +265,10 @@
   "pending_evidence_dimensions": [],
   "policy": {
     "d1_camera_metric_policy": "requested-camera precision and prompt-camera alignment are separate metrics",
-    "d3_d6_default_scorer": "visible + returned probe logprob with shared re-observation gate",
+    "d3_d6_default_scorer": "visible + re-observation probe logprob with shared re-observation gate",
     "fallback_score_fields_allowed": false,
     "missing_required_metric_field": "raise",
-    "oov_gate_update_policy": "shared re-observation judgeability gate for returned D5/D6",
+    "oov_gate_update_policy": "shared re-observation judgeability gate for D5/D6",
     "oov_null_scores": "allowed only for declared D5/D6 not-applicable rows",
     "paper_facing_ready_requires_no_pending_correction": true,
     "paper_reference": "WRBench: Current World Models Lack a Persistent State Core (preprint)"

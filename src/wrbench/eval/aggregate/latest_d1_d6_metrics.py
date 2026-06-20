@@ -220,7 +220,7 @@ LATEST_METRICS: tuple[MetricSpec, ...] = (
     MetricSpec(
         dimension_id="D5",
         output_column="D5_spatial_oov",
-        display_name="Returned spatial consistency (D5)",
+        display_name="Re-observation spatial consistency (D5)",
         score_field="vlm_spatial_reasoning",
         source_artifact_role="runtime_v2_gate_masked_export",
         owner="wrbench.eval.scoring.export_runtime_v2_evidence_first",
@@ -239,7 +239,7 @@ LATEST_METRICS: tuple[MetricSpec, ...] = (
     MetricSpec(
         dimension_id="D6",
         output_column="D6_state_oov",
-        display_name="Returned event-state consistency (D6)",
+        display_name="Re-observation event-state consistency (D6)",
         score_field="vlm_state_reasoning",
         source_artifact_role="runtime_v2_gate_masked_export",
         owner="wrbench.eval.scoring.export_runtime_v2_evidence_first",
@@ -332,8 +332,8 @@ def metric_contract_payload() -> dict[str, Any]:
             "missing_required_metric_field": "raise",
             "oov_null_scores": "allowed only for declared D5/D6 not-applicable rows",
             "paper_facing_ready_requires_no_pending_correction": True,
-            "d3_d6_default_scorer": "visible + returned probe logprob with shared re-observation gate",
-            "oov_gate_update_policy": "shared re-observation judgeability gate for returned D5/D6",
+            "d3_d6_default_scorer": "visible + re-observation probe logprob with shared re-observation gate",
+            "oov_gate_update_policy": "shared re-observation judgeability gate for D5/D6",
             "d1_camera_metric_policy": "requested-camera precision and prompt-camera alignment are separate metrics",
             "paper_reference": PAPER_REFERENCE,
         },
