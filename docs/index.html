@@ -1503,12 +1503,12 @@
       color: var(--ink);
     }
 
-    /* Paper figure first, interpretation below */
+    /* Desktop split: analysis and paper figure stay side by side where the figure benefits from close reading. */
     .split {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 18px;
-      align-items: start;
+      grid-template-columns: minmax(0, 0.96fr) minmax(0, 1.04fr);
+      gap: 34px;
+      align-items: center;
       margin-top: 30px;
       padding-top: 30px;
       border-top: 1px dashed var(--line-strong);
@@ -1519,9 +1519,12 @@
       padding-top: 0;
     }
 
+    .split--flip .split-media {
+      order: 2;
+    }
+
     .split-media {
       position: relative;
-      order: 1;
     }
 
     .split-media .figure-frame {
@@ -1529,7 +1532,6 @@
     }
 
     .split-copy {
-      order: 2;
       padding: 22px 24px;
       background: #fff;
       border: 1px solid rgba(124, 58, 237, 0.12);
@@ -1826,6 +1828,23 @@
       border-radius: 12px;
     }
 
+    .case-evidence {
+      display: grid;
+      grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+      gap: 16px;
+      align-items: start;
+      margin-top: 16px;
+    }
+
+    .case-evidence-copy {
+      min-width: 0;
+    }
+
+    .case-evidence .video-conclusion,
+    .case-evidence .case-frame {
+      margin-top: 0;
+    }
+
     .forensics-grid {
       display: flex;
       flex-direction: column;
@@ -1835,8 +1854,8 @@
 
     .forensic-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 16px;
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.15fr);
+      gap: 24px;
       align-items: start;
       padding: 20px;
       background: var(--panel);
@@ -1846,15 +1865,13 @@
     }
 
     .forensic-row:nth-child(even) {
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.9fr);
     }
 
-    .forensic-row .forensic-copy,
     .forensic-row:nth-child(even) .forensic-copy {
       order: 2;
     }
 
-    .forensic-row .forensic-thumb,
     .forensic-row:nth-child(even) .forensic-thumb {
       order: 1;
     }
@@ -1889,21 +1906,19 @@
 
     .stage-row {
       display: grid;
-      grid-template-columns: minmax(0, 1fr);
-      gap: 18px;
-      align-items: start;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+      gap: 32px;
+      align-items: center;
     }
 
     .stage-row.reverse {
-      grid-template-columns: minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
     }
 
-    .stage-row .stage-row-copy,
     .stage-row.reverse .stage-row-copy {
       order: 2;
     }
 
-    .stage-row .stage-row-fig,
     .stage-row.reverse .stage-row-fig {
       order: 1;
     }
@@ -2119,9 +2134,18 @@
 
       .split,
       .stage-row,
-      .stage-row.reverse {
+      .stage-row.reverse,
+      .case-evidence {
         grid-template-columns: 1fr;
         gap: 22px;
+      }
+
+      .split--flip .split-media,
+      .stage-row.reverse .stage-row-copy,
+      .stage-row.reverse .stage-row-fig,
+      .forensic-row:nth-child(even) .forensic-copy,
+      .forensic-row:nth-child(even) .forensic-thumb {
+        order: unset;
       }
     }
 
@@ -2321,11 +2345,18 @@
               <p class="caption">The camera returns, but the expected cat-on-bed state is not established.</p>
             </div>
           </div>
-          <div class="case-frame">
-            <img src="assets/teaser-cat-state-v20260619.png" alt="Cat jumps onto bed teaser montage">
-            <p class="caption">Frame montage: the camera looks away during the jump, then returns to check whether the
-              off-screen outcome was kept.
-            </p>
+          <div class="case-evidence">
+            <div class="case-evidence-copy">
+              <p class="video-conclusion"><strong>Why this case:</strong> it is the same teaser and overview scene, so
+                the expected endpoint is unambiguous. The montage anchors the task; the three clips above show whether a
+                model reaches that endpoint, drags the target, or fails to re-establish the returned state.</p>
+            </div>
+            <div class="case-frame">
+              <img src="assets/teaser-cat-state-v20260619.png" alt="Cat jumps onto bed teaser montage">
+              <p class="caption">Frame montage: the camera looks away during the jump, then returns to check whether the
+                off-screen outcome was kept.
+              </p>
+            </div>
           </div>
         </article>
       </div>
@@ -2473,7 +2504,7 @@
           </div>
         </div>
 
-        <div class="split split--stage2 reveal">
+        <div class="split split--stage2 split--flip reveal">
           <div class="split-media">
             <span class="figure-label">Figure · metric correlations</span>
             <div class="figure-frame">
@@ -3131,8 +3162,16 @@
               </div>
             `).join("")}
           </div>
-          <p class="video-conclusion"><strong>Takeaway:</strong> ${item.conclusion}</p>
-          ${item.caseFrame ? `<div class="case-frame"><img src="${item.caseFrame}" alt="${item.title} frame montage"><p class="caption">Paper case montage with aligned frame evidence.</p></div>` : ""}`;
+          ${item.caseFrame ? `
+            <div class="case-evidence">
+              <div class="case-evidence-copy">
+                <p class="video-conclusion"><strong>Takeaway:</strong> ${item.conclusion}</p>
+              </div>
+              <div class="case-frame">
+                <img src="${item.caseFrame}" alt="${item.title} frame montage">
+                <p class="caption">Paper case montage with aligned frame evidence.</p>
+              </div>
+            </div>` : `<p class="video-conclusion"><strong>Takeaway:</strong> ${item.conclusion}</p>`}`;
         root.appendChild(block);
       });
     }
