@@ -9,7 +9,7 @@ served by **GitHub Pages** from this `docs/` folder at
 - `index.html` — the single-page site.
 - `assets/` — figures, plots, forensics montages, logos, and case PNGs.
 - `videos/` — paper case-study clips referenced inline.
-- `iclr2026_conference.pdf` — paper PDF linked from the hero.
+- `iclr2026_conference.pdf` — archived local paper PDF; the hero links to arXiv.
 - `.nojekyll` — disables Jekyll so `assets/` and underscores are served verbatim.
 - `robots.txt` — allows indexing.
 

@@ -1246,6 +1246,10 @@
       gap: 14px;
     }
 
+    .video-grid.triad {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
     .video-panel {
       padding: 12px;
       background: #fff;
@@ -1261,6 +1265,11 @@
     .video-panel.pass {
       border-color: rgba(122, 154, 106, 0.4);
       box-shadow: inset 0 0 0 1px rgba(122, 154, 106, 0.06);
+    }
+
+    .video-panel.neutral {
+      border-color: rgba(111, 143, 214, 0.34);
+      box-shadow: inset 0 0 0 1px rgba(111, 143, 214, 0.05);
     }
 
     .video-meta {
@@ -2163,8 +2172,10 @@
           <p class="hero-tagline">The test is endpoint binding: does the target keep the event outcome while unobserved,
             or does it merely reappear when the camera returns?</p>
           <div class="btn-group">
-            <a class="btn primary" href="iclr2026_conference.pdf">Paper PDF</a>
-            <a class="btn" href="https://github.com/JinPLu/WRBench" target="_blank" rel="noopener">Code</a>
+            <a class="btn primary" href="https://arxiv.org/abs/2606.20545" target="_blank" rel="noopener">arXiv:2606.20545</a>
+            <a class="btn" href="https://arxiv.org/pdf/2606.20545" target="_blank" rel="noopener">Paper PDF</a>
+            <a class="btn" href="https://github.com/JinPLu/WRBench" target="_blank" rel="noopener">GitHub Code</a>
+            <a class="btn" href="https://huggingface.co/WRBench" target="_blank" rel="noopener">Hugging Face</a>
             <a class="btn" href="#insight">See the gap</a>
             <a class="btn" href="#findings">Key findings</a>
           </div>
@@ -2263,31 +2274,40 @@
         <article class="video-case gap-demo reveal">
           <div class="video-case-head">
             <div>
-              <h3>One concrete instance — the knocked cup</h3>
-              <p>Kitchen cup knock · camera pans right-to-left (horizontal turn) · same diagnostic question, two models.
-                Both earn judgeable re-observation; only one keeps the knock-event endpoint when the camera returns.</p>
+              <h3>Representative video instance — the cat jumps onto the bed</h3>
+              <p>Same scene and task as the Figure 1 teaser: bedroom cat jump · T2_div_b · right-to-left yaw ·
+                preferred 60-profile videos. The expected endpoint is simple: after the camera returns, the cat should
+                be on the bed.</p>
             </div>
           </div>
-          <div class="video-grid">
-            <div class="video-panel fail">
-              <div class="video-meta"><strong>Hunyuan GameCraft</strong><span class="badge fail">Returned state
-                  0.51</span>
-              </div>
-              <video src="videos/case_d_gamecraft.mp4" autoplay loop muted playsinline controls
-                preload="metadata"></video>
-              <p class="caption">The knocked cup returns in an inconsistent state.</p>
-            </div>
+          <div class="video-grid triad">
             <div class="video-panel pass">
-              <div class="video-meta"><strong>InSpatio World 14B</strong><span class="badge pass">Returned state
-                  0.81</span></div>
-              <video src="videos/case_d_inspatio.mp4" autoplay loop muted playsinline controls
+              <div class="video-meta"><strong>InSpatio World 14B</strong><span class="badge pass">Expected
+                  endpoint</span>
+              </div>
+              <video src="videos/cat_expected_inspatio_yaw_rl60.mp4" autoplay loop muted playsinline controls
                 preload="metadata"></video>
-              <p class="caption">The cup state is reconstructed far more consistently on return.</p>
+              <p class="caption">The cat reaches the bed and the returned view supports the cat-on-bed endpoint.</p>
+            </div>
+            <div class="video-panel fail">
+              <div class="video-meta"><strong>Wan-Fun 2.2-5B</strong><span class="badge fail">Dragged target</span>
+              </div>
+              <video src="videos/cat_drag_wan22_5b_yaw_rl60.mp4" autoplay loop muted playsinline controls
+                preload="metadata"></video>
+              <p class="caption">The cat is carried through the view instead of cleanly binding the jump endpoint.</p>
+            </div>
+            <div class="video-panel fail">
+              <div class="video-meta"><strong>Hunyuan WorldPlay</strong><span class="badge fail">Return problem</span>
+              </div>
+              <video src="videos/cat_reobs_worldplay_yaw_rl60.mp4" autoplay loop muted playsinline controls
+                preload="metadata"></video>
+              <p class="caption">The return does not establish the expected cat-on-bed state.</p>
             </div>
           </div>
           <div class="case-frame">
-            <img src="assets/cases/case_knock_state_gap_kitchen_cup_spatial_yaw_RL.png" alt="Knocked cup frame montage">
-            <p class="caption">Frame montage: identical knock event and camera path, different returned world states.
+            <img src="assets/teaser-cat-state-v20260619.png" alt="Cat jumps onto bed teaser montage">
+            <p class="caption">Frame montage: the teaser fixes the scene, event, and camera path, then checks whether
+              the returned view preserves the cat-on-bed endpoint.
             </p>
           </div>
         </article>
@@ -2590,12 +2610,11 @@
       <div class="container">
         <div class="section-header reveal" data-num="06">
           <p class="section-label">Cases</p>
-          <h2 class="section-title">More paired comparisons.</h2>
+          <h2 class="section-title">More appendix case clips.</h2>
         </div>
-        <p class="section-lead reveal">Beyond the knocked cup above, <strong>three more head-to-head
-            comparisons</strong>.
-          Each fixes the scene and event, varies one factor, and shows why <strong>judgeable re-observation</strong> and
-          <strong>correct returned consistency</strong> can diverge.
+        <p class="section-lead reveal">These exported motion pairs correspond to the appendix case montages in the
+          paper: direction controls judgeability, re-observation does not guarantee a correct return, and in-place
+          state changes remain hard even when returned evidence exists.
         </p>
         <div id="video-showcase"></div>
       </div>
@@ -2741,12 +2760,14 @@
         </div>
         <div class="bibtex-box reveal">
           <button class="copy-btn" type="button" onclick="copyBibtex(this)">Copy</button>
-          <pre><code>@article{lu2026wrbench,
+          <pre><code>@misc{lu2026currentworldmodels,
   title={Current World Models Lack a Persistent State Core},
-  author={Jinpeng Lu and Dexu Zhu and Haoyuan Shi and Yinda Chen and Linghan Cai and Guo Tang and Jie Cao and Yong Dai},
+  author={Jinpeng Lu and Dexu Zhu and Haoyuan Shi and Linghan Cai and Guo Tang and Yinda Chen and Jie Cao and Duyu Tang and Yi Zhang and Yong Dai and Xiaozhu Ju},
   year={2026},
-  note={Preprint},
-  url={https://github.com/JinPLu/WRBench}
+  eprint={2606.20545},
+  archivePrefix={arXiv},
+  primaryClass={cs.CV},
+  url={https://arxiv.org/abs/2606.20545}
 }</code></pre>
         </div>
       </div>
@@ -2754,8 +2775,8 @@
 
     <footer class="footer reveal">
       <div class="container" style="display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;width:100%">
-        <span>WRBench · Current World Models Lack a Persistent State Core · preprint</span>
-        <span><a href="https://github.com/JinPLu/WRBench">GitHub</a> · <a
+        <span>WRBench · Current World Models Lack a Persistent State Core · <a href="https://arxiv.org/abs/2606.20545">arXiv:2606.20545</a></span>
+        <span><a href="https://github.com/JinPLu/WRBench">GitHub</a> · <a href="https://huggingface.co/WRBench">Hugging Face</a> · <a
             href="mailto:jinplu@mail.ustc.edu.cn">Contact</a></span>
       </div>
     </footer>
@@ -2831,17 +2852,17 @@
 
     const videoCases = [
       {
-        title: "A · Camera pan direction and re-observation",
+        title: "A · Finding 1 — camera direction changes judgeability",
         subtitle: "Wan-Fun 2.1 · kitchen bowl placement · object relocated (spatial-only event, tier T1)",
         caseFrame: "assets/cases/case_direction_wanfun21_kitchen_bowl_spatial_lr_vs_rl.png",
-        conclusion: "Camera pan direction decides whether <strong>returned evidence exists</strong>. Pan left-to-right keeps the subject framed; pan right-to-left creates judgeable re-observation (<strong>returned state 0.71</strong>).",
+        conclusion: "Camera pan direction decides whether <strong>returned evidence exists</strong>; it does not by itself solve returned-state correctness.",
         panels: [
           { model: "Wan-Fun 2.1 · pan left-to-right", video: "videos/case_a_yaw_lr.mp4", tone: "neutral", badge: "No return test", note: "Subject dragged with camera; returned consistency cannot be scored." },
           { model: "Wan-Fun 2.1 · pan right-to-left", video: "videos/case_a_yaw_rl.mp4", tone: "pass", badge: "Returned state 0.71", note: "Subject leaves and re-enters; judgeable returned evidence." }
         ]
       },
       {
-        title: "B · Access ≠ correct return",
+        title: "B · Finding 1 — access is not a correct return",
         subtitle: "Loading dock box placement · object moved and changed (full event, tier T2_div_b) · pan right-to-left",
         caseFrame: "assets/cases/case_access_returned_consistency_loadingdock_place_spatia_vs_inspatio.png",
         conclusion: "Both rows create judgeable re-observation, but only <strong>InSpatio</strong> returns the box correctly placed on the pallet.",
@@ -2851,10 +2872,10 @@
         ]
       },
       {
-        title: "C · State-only returned contrast",
+        title: "C · Finding 2 — in-place state remains hard",
         subtitle: "Apartment lobby sofa sit · object changed in place (state-only event, tier T2_div_a) · pan right-to-left",
         caseFrame: "assets/cases/case_stateonly_apartment_sofa_wanfun_vs_wan27.png",
-        conclusion: "Matched re-observation support, <strong>different returned states</strong>: Wan2.7 preserves seated state; Wan-Fun A14B returns crouched on the open floor.",
+        conclusion: "The clip pair is a readable state-only contrast; the broader paper claim comes from the event-factor analysis, where in-place changes are consistently harder than relocation.",
         panels: [
           { model: "Wan-Fun 2.2-A14B", video: "videos/case_c_wanfun.mp4", tone: "fail", badge: "Returned state 0.57", note: "Subject returns crouched away from the sofa." },
           { model: "Wan2.7 I2V", video: "videos/case_c_wan27.mp4", tone: "pass", badge: "Returned state 0.79", note: "Subject returns seated at the sofa." }
@@ -2876,7 +2897,7 @@
       {
         title: "Why re-observation support depends on the camera path",
         image: "assets/forensics/forensic_access_direction.png",
-        body: "A <strong>static hold</strong> rarely creates judgeable re-observation; <strong>pan direction</strong> determines whether the hidden target returns in a checkable form."
+        body: "The same scene can become judgeable or unjudgeable under opposite <strong>yaw directions</strong>; timid prompt-only motion can also keep the target framed, so no hidden-then-returned test is created."
       },
       {
         title: "All condition types fail on the same in-place case",
@@ -2887,11 +2908,6 @@
         title: "High scores, frame-level failures",
         image: "assets/forensics/forensic_highscore_metricparadox.png",
         body: "Top camera execution can coincide with the <strong>weakest returned state</strong>; highest re-observation support can degrade the scene as the camera moves."
-      },
-      {
-        title: "In-place vs relocation on return",
-        image: "assets/forensics/forensic_inplace_vs_relocation.png",
-        body: "<strong>Relocation</strong> gives a new coordinate to track; an <strong>in-place transformation</strong> leaves the altered object to drift where it sits."
       }
     ];
 
