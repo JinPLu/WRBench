@@ -17,6 +17,7 @@ NATURAL25_PROMPT_PROFILES: tuple[str, ...] = (
 )
 
 NATURAL25_PAPER_RELEASE_ID = "paper_main_20260608"
+NATURAL25_RELEASE_INDEX_FILE = "release_index.json"
 NATURAL25_RELEASE_CORE_FILES: tuple[str, ...] = (
     "README.md",
     "variants.local_ti2v_tv2v.jsonl",
@@ -94,6 +95,13 @@ def natural25_release_manifest_path(
     return natural25_release_path("release_manifest.json", release_id=release_id)
 
 
+def natural25_release_index_path(
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> Path:
+    """Locate the post-publication cross-repository release index."""
+    return natural25_release_path(NATURAL25_RELEASE_INDEX_FILE, release_id=release_id)
+
+
 def natural25_release_tv2v_sources_path(
     release_id: str = NATURAL25_PAPER_RELEASE_ID,
 ) -> Path:
@@ -110,6 +118,22 @@ def load_natural25_release_manifest(
     if payload.get("release_id") != release_id:
         raise ValueError(
             f"Natural-25 release directory {release_id!r} contains manifest for {payload.get('release_id')!r}"
+        )
+    return payload
+
+
+def load_natural25_release_index(
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> dict[str, Any]:
+    """Load the GitHub/Hugging Face publication envelope for a release."""
+    payload = json.loads(natural25_release_index_path(release_id).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Natural-25 release index {release_id!r} must be an object")
+    if payload.get("schema_version") != "wrbench.paper_release_index.v1":
+        raise ValueError(f"Natural-25 release index {release_id!r} has an unsupported schema")
+    if payload.get("release_id") != release_id:
+        raise ValueError(
+            f"Natural-25 release directory {release_id!r} contains index for {payload.get('release_id')!r}"
         )
     return payload
 
