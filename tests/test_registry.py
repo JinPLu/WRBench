@@ -80,6 +80,34 @@ def test_active_record_input_kind(key):
     )
 
 
+def test_source_video_model_input_classification_is_explicit():
+    expected = {
+        "gen3c": ("TV2V", "temporal_conditioning_via_gen3c_vipe_cache"),
+        "hydra": ("TV2V", "temporal_conditioning_source_video"),
+        "inspatio-world": ("TV2V", "temporal_conditioning_source_video"),
+        "recammaster": ("TV2V", "temporal_conditioning_source_video"),
+        "spatia": ("TI2V", "first_frame_extraction"),
+        "liveworld": ("TI2V", "first_frame_extraction"),
+    }
+    for key, (model_input, source_video_usage) in expected.items():
+        record = model_record(key)
+        assert record.input_kind == "source_video"
+        assert record.model_input == model_input
+        assert record.source_video_usage == source_video_usage
+
+
+def test_frozen_static_exclusions_match_current_registry_capabilities():
+    expected = {
+        "gen3c": False,
+        "hunyuan-game-craft": True,
+        "hydra": False,
+        "inspatio-world": False,
+        "recammaster": False,
+    }
+    for key, supports_static in expected.items():
+        assert model_record(key).capabilities["supports_static"] is supports_static
+
+
 @pytest.mark.parametrize("key", active_model_keys(), ids=active_model_keys())
 def test_active_record_adapter_nonempty(key):
     record = model_record(key)

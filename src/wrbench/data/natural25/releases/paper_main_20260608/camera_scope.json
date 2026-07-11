@@ -1,0 +1,267 @@
+{
+  "aggregate_camera_counts": {
+    "static": 1800,
+    "yaw_LR": 3900,
+    "yaw_RL": 3900
+  },
+  "models": [
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "hunyuan_worldplay",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "lingbot_world",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "lingbot_world_act",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_first_frame_extraction",
+      "model_id": "liveworld",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60],
+      "source_video_usage": "first_frame_extraction"
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "magicworld",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_first_frame_extraction",
+      "model_id": "spatia",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60],
+      "source_video_usage": "first_frame_extraction"
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "versecrafter",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "wan21_fun_14b_cam",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "wan21_fun_1p3b_cam",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "wan22_fun_5b_cam",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 500,
+      "frozen_static_included": true,
+      "input_surface": "local_image_conditioned",
+      "model_id": "wan22_fun_a14b_cam",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": false,
+      "expected_rows": 400,
+      "frozen_static_included": false,
+      "frozen_static_omission": "no model-generated static row in the frozen release",
+      "input_surface": "local_temporal_source_video_via_vipe_cache",
+      "model_id": "gen3c",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60],
+      "source_video_usage": "temporal_conditioning_via_gen3c_vipe_cache"
+    },
+    {
+      "camera_cells": ["yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": true,
+      "expected_rows": 400,
+      "frozen_static_included": false,
+      "frozen_static_omission": "historical frozen-release fact; the freeze-time reason is not established by retained evidence",
+      "input_surface": "local_image_conditioned",
+      "model_id": "hunyuan_game_craft",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60]
+    },
+    {
+      "camera_cells": ["yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": false,
+      "expected_rows": 400,
+      "frozen_static_included": false,
+      "frozen_static_omission": "no model-generated static row in the frozen release",
+      "input_surface": "local_temporal_source_video",
+      "model_id": "hydra",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60],
+      "source_video_usage": "temporal_conditioning_source_video"
+    },
+    {
+      "camera_cells": ["yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": false,
+      "expected_rows": 400,
+      "frozen_static_included": false,
+      "frozen_static_omission": "no model-generated static row in the frozen release",
+      "input_surface": "local_temporal_source_video",
+      "model_id": "inspatio_world_14b",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60],
+      "source_video_usage": "temporal_conditioning_source_video"
+    },
+    {
+      "camera_cells": ["yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"],
+      "current_contract_supports_static": false,
+      "expected_rows": 400,
+      "frozen_static_included": false,
+      "frozen_static_omission": "no model-generated static row in the frozen release",
+      "input_surface": "local_temporal_source_video",
+      "model_id": "recammaster",
+      "prompt_catalog_id": "local_ti2v_tv2v",
+      "requested_yaw_degrees": [30, 60],
+      "source_video_usage": "temporal_conditioning_source_video"
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "hailuo_2_3",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "happyhorse_1_0_i2v",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "kling_v2_6",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "wan2_2_i2v_plus",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "wan2_6_i2v",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "wan2_7_i2v",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    },
+    {
+      "camera_cells": ["static", "yaw_LR", "yaw_RL"],
+      "current_contract_supports_static": null,
+      "expected_rows": 300,
+      "frozen_static_included": true,
+      "input_surface": "api_prompt_camera",
+      "model_id": "wanx2_1_i2v_turbo",
+      "prompt_catalog_id": "api_source",
+      "requested_yaw_degrees": null
+    }
+  ],
+  "release_id": "paper_main_20260608",
+  "schema_version": "wrbench.paper_camera_scope.v1",
+  "scope_files": {
+    "api_prompt_camera": "camera_scopes/api_prompt_camera.json",
+    "local_dual_angle": "camera_scopes/local_dual_angle.json",
+    "local_static": "camera_scopes/local_static.json"
+  },
+  "totals": {
+    "api_prompt_camera": 2100,
+    "local_dual_angle": 6400,
+    "local_static": 1100,
+    "paper_video_rows": 9600,
+    "static": 1800,
+    "yaw_LR": 3900,
+    "yaw_RL": 3900
+  },
+  "wan2_7_source_assets_are_conditioning_inputs": true
+}

@@ -1,0 +1,33 @@
+{
+  "camera_conditioning": {
+    "embedding_count": 20,
+    "matrix_sampling_stride": 4,
+    "rgb_frames_are_not_stride_sampled": true
+  },
+  "metric_surfaces": {
+    "D1_current_evaluator_policy": {
+      "crop_before_pose_inference": true,
+      "frames": [77, 154]
+    },
+    "D2_D6_current_evaluator_policy": {
+      "frames": [0, 154]
+    }
+  },
+  "published_D1_provenance": {
+    "CamAlign": "repaired_generated_only_before_pose",
+    "CamPrec": "legacy_full_concat_pose_then_posthoc_slice"
+  },
+  "release_id": "paper_main_20260608",
+  "rgb_conditioning": {
+    "decode_order": "frames 0 through 76 in order",
+    "frame_count": 77,
+    "preprocess": "RGB center-crop/resize to 480x832",
+    "short_input_policy": "repeat the last decoded frame"
+  },
+  "schema_version": "wrbench.hydra_evaluation_policy.v1",
+  "segments": {
+    "generated_continuation": {"start_inclusive": 77, "stop_exclusive": 154},
+    "source_condition": {"start_inclusive": 0, "stop_exclusive": 77}
+  },
+  "wording_boundary": "Current evaluator policy and legacy published-result provenance are distinct; this release does not replace the frozen CamPrec score."
+}

@@ -46,6 +46,7 @@ class Natural25CameraScope:
     variant_oov_gap: str
     expected_task_count: int
     cameras: tuple[Natural25CameraSpec, ...]
+    applicable_models: tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True)
@@ -106,8 +107,97 @@ def _scope_camera_spec(row: dict[str, Any], *, index: int) -> Natural25CameraSpe
     )
 
 
+def _release_camera_scope(payload: dict[str, Any], *, path: Path) -> Natural25CameraScope:
+    """Adapt a versioned paper scope to the per-model generation runner."""
+    scope_id = str(payload.get("scope_id") or "")
+    if scope_id == "paper_main_20260608.api_prompt_camera":
+        raise ValueError(
+            f"{path}: the frozen API prompt-camera scope is inspect-only; it records prompt intent "
+            "without requested degrees or target C2W and must not be passed to --camera-scope"
+        )
+
+    if scope_id == "paper_main_20260608.local_dual_angle":
+        expected_keys = {
+            "cells",
+            "expected_rows",
+            "models",
+            "prompt_catalog_id",
+            "rows_per_cell_per_model",
+            "schema_version",
+            "scope_id",
+        }
+        if set(payload) != expected_keys:
+            raise ValueError(f"{path}: local dual-angle release scope keys do not match the schema")
+        cameras = tuple(
+            _scope_camera_spec(
+                {
+                    "label": f"{cell['camera_type']}_{int(cell['requested_yaw_deg'])}",
+                    "preset": str(cell["camera_type"]),
+                    "camera_type": str(cell["camera_type"]),
+                    "stress_axis": "yaw",
+                    "stress_yaw_deg": cell["requested_yaw_deg"],
+                },
+                index=index,
+            )
+            for index, cell in enumerate(payload["cells"])
+        )
+        rows_per_cell = int(payload["rows_per_cell_per_model"])
+        expected_task_count = rows_per_cell * len(cameras)
+        models = tuple(str(model) for model in payload["models"])
+        if int(payload["expected_rows"]) != expected_task_count * len(models):
+            raise ValueError(f"{path}: aggregate rows do not match models x cells x rows-per-cell")
+        return Natural25CameraScope(
+            scope_id=scope_id,
+            variant_oov_gap="none",
+            expected_task_count=expected_task_count,
+            cameras=cameras,
+            applicable_models=models,
+        )
+
+    if scope_id == "paper_main_20260608.local_static":
+        expected_keys = {
+            "camera_type",
+            "excluded_models",
+            "expected_rows",
+            "models",
+            "prompt_catalog_id",
+            "rows_per_model",
+            "schema_version",
+            "scope_id",
+        }
+        if set(payload) != expected_keys:
+            raise ValueError(f"{path}: local static release scope keys do not match the schema")
+        camera_type = str(payload["camera_type"])
+        camera = _scope_camera_spec(
+            {
+                "label": camera_type,
+                "preset": camera_type,
+                "camera_type": camera_type,
+                "stress_axis": "static",
+                "stress_yaw_deg": None,
+            },
+            index=0,
+        )
+        models = tuple(str(model) for model in payload["models"])
+        expected_task_count = int(payload["rows_per_model"])
+        if int(payload["expected_rows"]) != expected_task_count * len(models):
+            raise ValueError(f"{path}: aggregate rows do not match models x rows-per-model")
+        return Natural25CameraScope(
+            scope_id=scope_id,
+            variant_oov_gap="none",
+            expected_task_count=expected_task_count,
+            cameras=(camera,),
+            applicable_models=models,
+        )
+
+    raise ValueError(f"{path}: unknown versioned paper camera scope {scope_id!r}")
+
+
 def load_natural25_camera_scope(path: str | Path) -> Natural25CameraScope:
-    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    resolved = Path(path)
+    payload = json.loads(resolved.read_text(encoding="utf-8"))
+    if payload.get("schema_version") == "wrbench.camera_scope.v1":
+        return _release_camera_scope(payload, path=resolved)
     expected_keys = {"schema_version", "scope_id", "variant_filter", "expected_task_count", "cameras"}
     keys = set(payload)
     if keys != expected_keys:

@@ -1,0 +1,90 @@
+{
+  "api_prompt_camera": {
+    "camera_to_source_oov_gap": {
+      "static": "static",
+      "yaw_LR": "yaw_LR",
+      "yaw_RL": "yaw_RL"
+    },
+    "catalog_id": "api_source",
+    "provider_request_boundary": "The catalog stores historical source prompts. A provider-specific prompt_to_send is exact only when request evidence exists.",
+    "selected_rows": 300
+  },
+  "catalogs": {
+    "api_source": {
+      "path": "variants.api_source.jsonl",
+      "rows": 400,
+      "sha256": "ce4eea268ee0c0f7fb379be8a51eb9920e66cee1e18ad82dd7111eb9c99a2ad7"
+    },
+    "local_ti2v_tv2v": {
+      "path": "variants.local_ti2v_tv2v.jsonl",
+      "rows": 400,
+      "sha256": "19d99d90b40fe3453d74a634d615403fe4721597422f1d9d433df1611901ac7e"
+    }
+  },
+  "expected_output_rows_by_model": {
+    "gen3c": 400,
+    "hailuo_2_3": 300,
+    "happyhorse_1_0_i2v": 300,
+    "hunyuan_game_craft": 400,
+    "hunyuan_worldplay": 500,
+    "hydra": 400,
+    "inspatio_world_14b": 400,
+    "kling_v2_6": 300,
+    "lingbot_world": 500,
+    "lingbot_world_act": 500,
+    "liveworld": 500,
+    "magicworld": 500,
+    "recammaster": 400,
+    "spatia": 500,
+    "versecrafter": 500,
+    "wan21_fun_14b_cam": 500,
+    "wan21_fun_1p3b_cam": 500,
+    "wan22_fun_5b_cam": 500,
+    "wan22_fun_a14b_cam": 500,
+    "wan2_2_i2v_plus": 300,
+    "wan2_6_i2v": 300,
+    "wan2_7_i2v": 300,
+    "wanx2_1_i2v_turbo": 300
+  },
+  "local_generation": {
+    "camera_control": "supplied separately from content prompts",
+    "catalog_id": "local_ti2v_tv2v",
+    "historical_catalog_rows_not_all_sent": 300,
+    "selected_oov_gap": "none",
+    "selected_rows": 100
+  },
+  "model_to_catalog": {
+    "gen3c": "local_ti2v_tv2v",
+    "hailuo_2_3": "api_source",
+    "happyhorse_1_0_i2v": "api_source",
+    "hunyuan_game_craft": "local_ti2v_tv2v",
+    "hunyuan_worldplay": "local_ti2v_tv2v",
+    "hydra": "local_ti2v_tv2v",
+    "inspatio_world_14b": "local_ti2v_tv2v",
+    "kling_v2_6": "api_source",
+    "lingbot_world": "local_ti2v_tv2v",
+    "lingbot_world_act": "local_ti2v_tv2v",
+    "liveworld": "local_ti2v_tv2v",
+    "magicworld": "local_ti2v_tv2v",
+    "recammaster": "local_ti2v_tv2v",
+    "spatia": "local_ti2v_tv2v",
+    "versecrafter": "local_ti2v_tv2v",
+    "wan21_fun_14b_cam": "local_ti2v_tv2v",
+    "wan21_fun_1p3b_cam": "local_ti2v_tv2v",
+    "wan22_fun_5b_cam": "local_ti2v_tv2v",
+    "wan22_fun_a14b_cam": "local_ti2v_tv2v",
+    "wan2_2_i2v_plus": "api_source",
+    "wan2_6_i2v": "api_source",
+    "wan2_7_i2v": "api_source",
+    "wanx2_1_i2v_turbo": "api_source"
+  },
+  "release_id": "paper_main_20260608",
+  "schema_version": "wrbench.prompt_usage.v1",
+  "tv2v_conditioning_source_requests": {
+    "exact_provider_request_sidecars": 100,
+    "exact_requests_matching_a_frozen_catalog": 75,
+    "exact_requests_not_represented_by_frozen_catalogs": 25,
+    "mapping_boundary": "task_variant_id to source_catalog_variant_id identifies the conditioning asset; it does not assert provider request prompt-text equality",
+    "not_represented_event_tier": "T2_div_a"
+  }
+}

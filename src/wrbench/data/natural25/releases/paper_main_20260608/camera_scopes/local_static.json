@@ -1,0 +1,28 @@
+{
+  "camera_type": "static",
+  "excluded_models": [
+    {"current_contract_supports_static": false, "frozen_omission": "no model-generated static row in the frozen release", "model_id": "gen3c"},
+    {"current_contract_supports_static": true, "frozen_omission": "historical frozen-release fact; the freeze-time reason is not established by retained evidence", "model_id": "hunyuan_game_craft"},
+    {"current_contract_supports_static": false, "frozen_omission": "no model-generated static row in the frozen release", "model_id": "hydra"},
+    {"current_contract_supports_static": false, "frozen_omission": "no model-generated static row in the frozen release", "model_id": "inspatio_world_14b"},
+    {"current_contract_supports_static": false, "frozen_omission": "no model-generated static row in the frozen release", "model_id": "recammaster"}
+  ],
+  "expected_rows": 1100,
+  "models": [
+    "hunyuan_worldplay",
+    "lingbot_world",
+    "lingbot_world_act",
+    "liveworld",
+    "magicworld",
+    "spatia",
+    "versecrafter",
+    "wan21_fun_14b_cam",
+    "wan21_fun_1p3b_cam",
+    "wan22_fun_5b_cam",
+    "wan22_fun_a14b_cam"
+  ],
+  "prompt_catalog_id": "local_ti2v_tv2v",
+  "rows_per_model": 100,
+  "schema_version": "wrbench.camera_scope.v1",
+  "scope_id": "paper_main_20260608.local_static"
+}

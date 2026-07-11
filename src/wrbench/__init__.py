@@ -32,7 +32,7 @@ from wrbench.registry import (
 )
 from wrbench.runner import compile_camera
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 
 def list_models(include_deferred: bool = False) -> list[str]:

@@ -1,0 +1,162 @@
+{
+  "artifacts": {
+    "README.md": {
+      "bytes": 4530,
+      "row_count": 1,
+      "sha256": "b6de8b3f9eadf492e1566fd1e2f07600ef852527d041b1224b336d416a688cdf"
+    },
+    "camera_scope.json": {
+      "bytes": 10027,
+      "row_count": 23,
+      "sha256": "ab6e5b8970fb16c784f1b528b2bcd5dbb67c98b025a037e74efca69b6f57c8bb"
+    },
+    "camera_scopes/api_prompt_camera.json": {
+      "bytes": 671,
+      "row_count": 21,
+      "sha256": "bac63c661903c8e9207e9a47adcd5c185bc074e6204884ded2d3a9aabdc0428b"
+    },
+    "camera_scopes/local_dual_angle.json": {
+      "bytes": 802,
+      "row_count": 64,
+      "sha256": "449bde6863d2c31f75331deb8e4b1119b71a9a93a2490fe114771a26f9a25848"
+    },
+    "camera_scopes/local_static.json": {
+      "bytes": 1299,
+      "row_count": 11,
+      "sha256": "375cb374813fba1a6b8c7923efcfebb0b62ea751ff6a6c4734cef455acdd475b"
+    },
+    "hydra_evaluation_policy.json": {
+      "bytes": 1144,
+      "row_count": 1,
+      "sha256": "7e78c77ab7972ab75c723963c9d1bf33081223cc306da936bc83feee188ff95e"
+    },
+    "prompt_usage.json": {
+      "bytes": 3033,
+      "row_count": 23,
+      "sha256": "b9ada8903cb63edad6929773c19409dfda7e137b7d6d63cd9d3c51c26ec93d94"
+    },
+    "tv2v_sources.jsonl": {
+      "bytes": 278406,
+      "row_count": 100,
+      "sha256": "807e1ea38f2c198fb37b1f23fed00c89b092b3207fc943293b2ec3b78f1fdbba"
+    },
+    "variants.api_source.jsonl": {
+      "bytes": 324660,
+      "row_count": 400,
+      "sha256": "ce4eea268ee0c0f7fb379be8a51eb9920e66cee1e18ad82dd7111eb9c99a2ad7"
+    },
+    "variants.local_ti2v_tv2v.jsonl": {
+      "bytes": 324436,
+      "row_count": 400,
+      "sha256": "19d99d90b40fe3453d74a634d615403fe4721597422f1d9d433df1611901ac7e"
+    }
+  },
+  "baseline_commits": {
+    "github_wrbench": "629595dc60ec08a29711af0377280c4ac9dd40bc",
+    "hf_wrbench_natural25": "9af0f0cb47531c26b6112b6941b0c56814492fac",
+    "hf_wrbench_videos": "8a927b9322c5d8af6474399ce4840ef4148f8e39"
+  },
+  "camera_scope": {
+    "aggregate_camera_counts": {
+      "static": 1800,
+      "yaw_LR": 3900,
+      "yaw_RL": 3900
+    },
+    "api_prompt_camera_rows": 2100,
+    "local_dual_angle_rows": 6400,
+    "local_static_rows": 1100,
+    "model_applicability_path": "camera_scope.json"
+  },
+  "current_video_dataset_rows": 11100,
+  "current_video_dataset_rows_semantics": "Expanded rolling public video release; not the frozen paper denominator.",
+  "hydra_evaluation_surfaces": {
+    "current_CamAlign": "generated-only before pose inference",
+    "current_D1_policy": "crop [77,154) before pose inference",
+    "current_D2_D6_policy": "score full [0,154) submission",
+    "frozen_CamPrec_provenance": "legacy full-concat pose then post-hoc slice",
+    "policy_path": "hydra_evaluation_policy.json"
+  },
+  "intended_publication": {
+    "github_release_tag": "v0.1.1",
+    "hf_immutable_tag": "paper-main-20260608-repro-v1",
+    "release_index_path_after_hf_publication": "release_index.json"
+  },
+  "known_limitations": [
+    "The frozen HyDRA CamPrec value retains legacy full-concat-pose then post-hoc-slice provenance and is not replaced by this provenance hotfix.",
+    "Provider-specific API prompt_to_send materialization can differ from the historical API source catalog and is exact only where request evidence exists.",
+    "Twenty-five T2_div_a Wan2.7 source requests predate both frozen prompt catalogs; exact request sidecars are preserved and the task-to-static ID mapping does not imply prompt-text equality.",
+    "Hunyuan GameCraft has no static row in the frozen 9,600-output release even though the current generation contract supports static; the freeze-time omission reason is not established by retained evidence.",
+    "The rolling public video dataset has 11,100 rows; this release freezes only the 23-model, 9,600-output paper table."
+  ],
+  "model_to_prompt_catalog": {
+    "gen3c": "local_ti2v_tv2v",
+    "hailuo_2_3": "api_source",
+    "happyhorse_1_0_i2v": "api_source",
+    "hunyuan_game_craft": "local_ti2v_tv2v",
+    "hunyuan_worldplay": "local_ti2v_tv2v",
+    "hydra": "local_ti2v_tv2v",
+    "inspatio_world_14b": "local_ti2v_tv2v",
+    "kling_v2_6": "api_source",
+    "lingbot_world": "local_ti2v_tv2v",
+    "lingbot_world_act": "local_ti2v_tv2v",
+    "liveworld": "local_ti2v_tv2v",
+    "magicworld": "local_ti2v_tv2v",
+    "recammaster": "local_ti2v_tv2v",
+    "spatia": "local_ti2v_tv2v",
+    "versecrafter": "local_ti2v_tv2v",
+    "wan21_fun_14b_cam": "local_ti2v_tv2v",
+    "wan21_fun_1p3b_cam": "local_ti2v_tv2v",
+    "wan22_fun_5b_cam": "local_ti2v_tv2v",
+    "wan22_fun_a14b_cam": "local_ti2v_tv2v",
+    "wan2_2_i2v_plus": "api_source",
+    "wan2_6_i2v": "api_source",
+    "wan2_7_i2v": "api_source",
+    "wanx2_1_i2v_turbo": "api_source"
+  },
+  "paper_model_count": 23,
+  "paper_table_date": "2026-06-08",
+  "paper_video_rows": 9600,
+  "producer_commits": {
+    "generation_contract_source": "c019d92198af9ccb1538c93f7e0ba6ed37820677",
+    "paper_source": "fd2ecef59f89d165a48c7389ee37c495ff22aa12",
+    "prompt_and_benchmark_source": "98039e5aa90637cf0e5a7eaf31211aa2eb4b8ef9",
+    "public_contract_baseline": "629595dc60ec08a29711af0377280c4ac9dd40bc"
+  },
+  "prompt_surfaces": {
+    "api_source": {
+      "applicability": "7 frozen API prompt-camera models",
+      "boundary": "historical source prompts, not automatically byte-exact provider requests",
+      "model_mapping_path": "prompt_usage.json",
+      "path": "variants.api_source.jsonl",
+      "rows": 400
+    },
+    "local_ti2v_tv2v": {
+      "applicability": "16 frozen locally deployed models",
+      "boundary": "100 oov_gap=none content prompts were selected; camera control was supplied separately",
+      "model_mapping_path": "prompt_usage.json",
+      "path": "variants.local_ti2v_tv2v.jsonl",
+      "rows": 400
+    }
+  },
+  "publication_handshake": {
+    "content_manifest_self_commit_policy": "This manifest intentionally does not record the future commit containing itself.",
+    "step_1": "Publish the GitHub core contract commit G.",
+    "step_2": "Publish both HF metadata commits referencing G.",
+    "step_3": "Add GitHub-only release_index.json in commit H, then create immutable tags and the external release attestation."
+  },
+  "release_id": "paper_main_20260608",
+  "schema_version": "wrbench.paper_release.v1",
+  "scores_changed": false,
+  "source_video_assets": {
+    "asset_role": "conditioning inputs, never additional benchmark outputs",
+    "count": 100,
+    "manifest_path": "tv2v_sources.jsonl",
+    "provider_request_catalog_status_counts": {
+      "exact_catalog_match": 75,
+      "exact_request_sidecar_not_represented_by_frozen_catalogs": 25
+    },
+    "repo_id": "WRBench/wrbench-videos",
+    "revision": "8a927b9322c5d8af6474399ce4840ef4148f8e39"
+  },
+  "video_bytes_changed": false
+}

@@ -1,9 +1,16 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 — 2026-07-12
 
 ### Added
 
+- Immutable `paper_main_20260608` Natural-25 release contract with exact local
+  and API-source prompt catalogs, frozen camera scope, a 100-row Wan2.7 source
+  manifest, and explicit HyDRA segment/evaluator provenance.
+- Package loaders and validation for named Natural-25 paper releases.
+- Resumable `scripts/prepare_paper_tv2v_sources.py` source preparation with
+  plan, download, verify-only, SHA256 verification, and overwrite refusal.
+- Strict `task_variant_id` source-video task maps for Natural-25 generation.
 - Separate Natural-25 T2V prompt profile for prompt-only models that do not
   receive a first-frame image.
 - Legacy pronoun-anchored prompt snapshot:
@@ -17,11 +24,21 @@
 
 ### Changed
 
-- Bundled `variants.jsonl` remains the TI2V/TV2V prompt-of-record. Prompt-only
-  T2V models use the separate `t2v_layout_anchor` prompt profile and T2V event
-  tails instead of mutating the main prompt file.
-- Published 23-model results (`wrbench_23model_results.*`) are annotated as
-  frozen legacy-pronoun prompt outputs; T2V addenda are maintained separately.
+- `variants.jsonl` remains available as the active deterministic toolkit
+  surface, while the exact frozen paper prompts now live under
+  `natural25/releases/paper_main_20260608/`.
+- Natural-25 generation accepts explicit `--source-video-task-map` and
+  `--source-video-root`, verifies each source once across camera cells, rejects
+  repeated-first-frame benchmark inputs, and records source provenance in the
+  generated row and camera sidecar.
+- Spatia and LiveWorld are classified as first-frame TI2V wrappers rather than
+  temporal TV2V; temporal source-video use remains explicit for Gen3C, HyDRA,
+  InSpatio World, and ReCamMaster.
+- Prompt-only T2V models use the separate `t2v_layout_anchor` prompt profile
+  and T2V event tails instead of mutating the compatibility prompt file.
+- Published 23-model results (`wrbench_23model_results.*`) now resolve prompt
+  provenance through the versioned local/API paper catalogs; the legacy
+  pronoun snapshot remains T2V-addendum compatibility metadata only.
 - README now links to `docs/eval/README.md` as the canonical public policy for
   re-observation scoring and prompt-only T2V scope; per-model pages point users
   to `wrbench doctor --model ...` instead of stale backend-status boilerplate.

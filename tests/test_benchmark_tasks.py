@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from collections import Counter
 
+import pytest
+
 from wrbench.benchmark import (
     NATURAL25_CAMERA_COMBOS,
     load_natural25_camera_scope,
@@ -17,6 +19,7 @@ from wrbench.datasets import (
     load_natural25_t2v_layout_anchors,
     natural25_t2v_event_tails_path,
     natural25_prompt_profile_path,
+    natural25_release_path,
     natural25_t2v_rotation_stress_camera_scope_path,
     published_t2v_results_json,
 )
@@ -82,6 +85,10 @@ def test_t2v_results_metadata_uses_separate_prompt_and_scope() -> None:
 
     assert payload["table_policy"] == "separate_from_frozen_23model_main_table"
     assert payload["prompt_of_record"] == "src/wrbench/data/natural25/prompt_profiles/t2v_layout_anchor.json"
+    assert payload["frozen_main_table_prompt_contract"].endswith(
+        "releases/paper_main_20260608/prompt_usage.json"
+    )
+    assert "legacy_main_table_prompt" not in payload
     assert definition["leaderboard_track"] == "t2v_rotation_stress"
     assert definition["prompt_profile_id"] == "t2v_layout_anchor"
     assert definition["camera_scope_id"] == "natural25_t2v_rotation_stress_30_60"
@@ -90,6 +97,48 @@ def test_t2v_results_metadata_uses_separate_prompt_and_scope() -> None:
     assert all("pan" not in camera for camera in definition["camera_controls"])
     assert payload["models"][0]["generation"]["camera_scope_id"] == definition["camera_scope_id"]
     assert payload["models"][0]["generation"]["prompt_profile_id"] == definition["prompt_profile_id"]
+
+
+def test_paper_local_dual_angle_scope_is_runner_compatible() -> None:
+    scope = load_natural25_camera_scope(
+        natural25_release_path("camera_scopes/local_dual_angle.json")
+    )
+    tasks = natural25_camera_tasks_from_scope(
+        camera_scope=scope,
+        variants_path=natural25_release_path("variants.local_ti2v_tv2v.jsonl"),
+    )
+
+    assert len(scope.applicable_models or ()) == 16
+    assert len(tasks) == 400
+    assert Counter(task.camera for task in tasks) == {
+        "yaw_LR_30": 100,
+        "yaw_RL_30": 100,
+        "yaw_LR_60": 100,
+        "yaw_RL_60": 100,
+    }
+    assert Counter(task.stress_yaw_deg for task in tasks) == {30.0: 200, 60.0: 200}
+
+
+def test_paper_local_static_scope_is_runner_compatible() -> None:
+    scope = load_natural25_camera_scope(
+        natural25_release_path("camera_scopes/local_static.json")
+    )
+    tasks = natural25_camera_tasks_from_scope(
+        camera_scope=scope,
+        variants_path=natural25_release_path("variants.local_ti2v_tv2v.jsonl"),
+    )
+
+    assert len(scope.applicable_models or ()) == 11
+    assert len(tasks) == 100
+    assert {task.camera for task in tasks} == {"static"}
+    assert {task.stress_yaw_deg for task in tasks} == {None}
+
+
+def test_paper_api_prompt_camera_scope_is_explicitly_inspect_only() -> None:
+    with pytest.raises(ValueError, match="inspect-only"):
+        load_natural25_camera_scope(
+            natural25_release_path("camera_scopes/api_prompt_camera.json")
+        )
 
 
 def test_t2v_layout_anchor_prompt_profile_keeps_ti2v_prompt_as_record() -> None:

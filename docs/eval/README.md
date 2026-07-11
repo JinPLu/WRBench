@@ -135,11 +135,12 @@ the layout information that TI2V/TV2V runs get from the first frame.
 
 | Artifact | Purpose |
 | --- | --- |
-| `src/wrbench/data/natural25/variants.jsonl` | Active `ti2v_prompt` source rows |
+| `src/wrbench/data/natural25/variants.jsonl` | Current deterministic toolkit `ti2v_prompt` rows (compatibility surface) |
+| `src/wrbench/data/natural25/releases/paper_main_20260608/` | Frozen paper prompts, camera scope, TV2V sources, and HyDRA policy |
 | `src/wrbench/data/natural25/t2v_layout_anchors.jsonl` | Text-only layout anchors for subject/interactor/open-surface/background facts |
 | `src/wrbench/data/natural25/prompt_profiles/t2v_layout_anchor.json` | T2V prompt-profile policy; excludes T2I/TI2V style wording |
 | `src/wrbench/data/natural25/camera_scopes/t2v_rotation_stress_30_60.json` | Formal T2V rotation-stress scope: `static`, `yaw30_LR`, `yaw30_RL`, `yaw60_LR`, `yaw60_RL` |
-| `src/wrbench/data/natural25/variants.legacy_pronoun_20260620.jsonl` | Frozen pronoun prompts for the published 23-model table |
+| `src/wrbench/data/natural25/variants.legacy_pronoun_20260620.jsonl` | Compatibility snapshot for released T2V-addendum metadata; not the paper prompt-of-record |
 | `src/wrbench/data/results/wrbench_t2v_results.json` | T2V-only benchmark table (separate from the frozen 23-model main table) |
 | `wrbench.t2v` | Intake acceptance gates + minWM rotation-step calibration checks |
 
@@ -154,3 +155,22 @@ Use `wrbench.datasets.resolve_variant_prompt(variant, prompt_profile="t2v_layout
 when materializing prompt files for prompt-only T2V models. Natural-language
 prompts should not carry camera-control clauses for the rotation-stress scope;
 camera control comes from the camera scope and the backend payload sidecar.
+
+### HyDRA frame policy
+
+The versioned paper contract distinguishes current evaluator policy from the
+legacy provenance of one published D1 surface:
+
+- Source decode reads frames 0 through 76 in order. Short inputs repeat the
+  last frame; RGB is center-cropped/resized to 480x832.
+- Camera matrices, not RGB frames, use stride-4 sampling to 20 embeddings.
+- Submitted frames `[0,77)` are the source/condition segment and `[77,154)` are
+  the generated continuation.
+- Current D1 evaluation crops `[77,154)` before pose inference. D2-D6 score the
+  full 154-frame submission.
+- Current CamAlign uses the repaired generated-only path. The frozen CamPrec
+  value retains legacy full-concat-pose then post-hoc-slice provenance and is
+  not silently replaced in version 0.1.1.
+
+The machine-readable source is
+`src/wrbench/data/natural25/releases/paper_main_20260608/hydra_evaluation_policy.json`.

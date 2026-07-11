@@ -12,7 +12,7 @@
   },
   "capabilities": {
     "rotation": true,
-    "supports_static": true,
+    "supports_static": false,
     "translation": true
   },
   "default_fps": 16,
@@ -30,7 +30,9 @@
   },
   "input_kind": "source_video",
   "key": "gen3c",
+  "model_input": "TV2V",
   "notes": "GEN3C; official dynamic path; W2C matrices and intrinsics for ViPE cache rendering; requires source-matched rgb/depth/pose/intrinsics cache at inference time.",
   "payload_type": "gen3c_w2c_intrinsics",
+  "source_video_usage": "temporal_conditioning_via_gen3c_vipe_cache",
   "status": "active"
 }

@@ -23,6 +23,17 @@ from typing import Any
 MODELS_DIR = Path(__file__).resolve().parent / "models"
 
 VALID_INPUT_KINDS = {"image", "none", "source_video"}
+VALID_MODEL_INPUTS = {"T2V", "TI2V", "TV2V"}
+VALID_SOURCE_VIDEO_USAGES = {
+    "none",
+    "first_frame_extraction",
+    "temporal_conditioning_source_video",
+    "temporal_conditioning_via_gen3c_vipe_cache",
+}
+TEMPORAL_SOURCE_VIDEO_USAGES = {
+    "temporal_conditioning_source_video",
+    "temporal_conditioning_via_gen3c_vipe_cache",
+}
 
 VALID_TRANSLATION_UNITS = {
     "canonical_scene",
@@ -58,6 +69,8 @@ class ModelRecord:
     aliases: tuple[str, ...]
     status: str
     input_kind: str
+    model_input: str
+    source_video_usage: str
     adapter: str
     payload_type: str
     amplitude: CameraAmplitude
@@ -120,6 +133,49 @@ def _parse_amplitude(key: str, record: dict[str, Any]) -> CameraAmplitude:
         raise RegistryError(f"{key}: invalid amplitude record: {exc}") from exc
 
 
+def _parse_model_input_metadata(
+    *,
+    key: str,
+    status: str,
+    input_kind: str,
+    payload: dict[str, Any],
+) -> tuple[str, str]:
+    if status != "active":
+        return str(payload.get("model_input") or ""), str(payload.get("source_video_usage") or "")
+
+    defaults = {"none": "T2V", "image": "TI2V"}
+    if input_kind == "source_video":
+        if not payload.get("model_input"):
+            raise RegistryError(
+                f"{key}: source_video records must declare model_input explicitly "
+                "(TV2V for temporal conditioning or TI2V for first-frame extraction)"
+            )
+        if not payload.get("source_video_usage"):
+            raise RegistryError(f"{key}: source_video records must declare source_video_usage explicitly")
+
+    model_input = str(payload.get("model_input") or defaults.get(input_kind, ""))
+    source_video_usage = str(payload.get("source_video_usage") or "none")
+    if model_input not in VALID_MODEL_INPUTS:
+        raise RegistryError(f"{key}: model_input must be one of {sorted(VALID_MODEL_INPUTS)}")
+    if source_video_usage not in VALID_SOURCE_VIDEO_USAGES:
+        raise RegistryError(
+            f"{key}: source_video_usage must be one of {sorted(VALID_SOURCE_VIDEO_USAGES)}"
+        )
+
+    if input_kind == "none" and (model_input, source_video_usage) != ("T2V", "none"):
+        raise RegistryError(f"{key}: input_kind=none requires model_input='T2V' and source_video_usage='none'")
+    if input_kind == "image" and (model_input, source_video_usage) != ("TI2V", "none"):
+        raise RegistryError(f"{key}: input_kind=image requires model_input='TI2V' and source_video_usage='none'")
+    if input_kind == "source_video":
+        if model_input not in {"TI2V", "TV2V"}:
+            raise RegistryError(f"{key}: input_kind=source_video requires model_input TI2V or TV2V")
+        if source_video_usage == "first_frame_extraction" and model_input != "TI2V":
+            raise RegistryError(f"{key}: first_frame_extraction requires model_input='TI2V'")
+        if source_video_usage in TEMPORAL_SOURCE_VIDEO_USAGES and model_input != "TV2V":
+            raise RegistryError(f"{key}: temporal source_video_usage requires model_input='TV2V'")
+    return model_input, source_video_usage
+
+
 def _parse_record(path: Path, payload: dict[str, Any]) -> ModelRecord:
     key = payload.get("key")
     if not isinstance(key, str) or not key:
@@ -146,11 +202,19 @@ def _parse_record(path: Path, payload: dict[str, Any]) -> ModelRecord:
     execution_contract = payload.get("execution_contract")
     if execution_contract is not None and not isinstance(execution_contract, dict):
         raise RegistryError(f"{key}: execution_contract must be an object")
+    model_input, source_video_usage = _parse_model_input_metadata(
+        key=key,
+        status=status,
+        input_kind=input_kind,
+        payload=payload,
+    )
     return ModelRecord(
         key=key,
         aliases=aliases,
         status=status,
         input_kind=input_kind,
+        model_input=model_input,
+        source_video_usage=source_video_usage,
         adapter=adapter,
         payload_type=_require_str(payload, "payload_type", key=key) if status == "active" else str(payload.get("payload_type") or ""),
         amplitude=amplitude,
@@ -221,6 +285,14 @@ def is_deferred_model(name: str) -> bool:
 
 def input_kind(name: str) -> str:
     return model_record(name).input_kind
+
+
+def model_input(name: str) -> str:
+    return model_record(name).model_input
+
+
+def source_video_usage(name: str) -> str:
+    return model_record(name).source_video_usage
 
 
 def adapter_name(name: str) -> str:

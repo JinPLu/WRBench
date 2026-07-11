@@ -14,6 +14,7 @@ This directory ships the **Natural-25** scene/event prompt grid used by WRBench.
 | `camera_scopes/t2v_rotation_stress_30_60.json` | T2V-only rotation-stress scope: `static`, `yaw30_LR`, `yaw30_RL`, `yaw60_LR`, `yaw60_RL` |
 | `first_frames/` | Released Natural-25 PNG first frames, one per `family_id` |
 | `first_frames_manifest.json` | First-frame paths and source `t2i_scene` prompts |
+| `releases/paper_main_20260608/` | Immutable 23-model/9,600-row paper prompt, camera, TV2V-source, and HyDRA provenance contract |
 
 The bundled first frames and prompt variants are released with the WRBench
 repository under the repository Apache-2.0 license, so the open-source
@@ -22,12 +23,15 @@ also regenerate first-frame PNGs per family via `wrbench firstframe` (optional
 extra) or substitute images from your own T2I pipeline. Human annotation
 verdicts are released separately from this repository.
 
-`variants.jsonl` keeps `ti2v_prompt` as the first-frame-anchored prompt of
-record. Text-only runs should explicitly materialize a prompt profile such as
+`variants.jsonl` keeps a current deterministic, first-frame-anchored toolkit
+prompt for compatibility. It is not the frozen paper prompt of record; use
+`releases/paper_main_20260608/variants.local_ti2v_tv2v.jsonl` or
+`variants.api_source.jsonl` according to that release's `prompt_usage.json`.
+Text-only runs should explicitly materialize a prompt profile such as
 `t2v_layout_anchor`, where the initial layout and event tails are maintained in
 separate T2V files because there is no first frame to carry them. Prompt-only
 T2V leaderboard entries also use their own rotation-stress scope rather than
-the main TI2V/TV2V leaderboard surface.
+the frozen paper or TI2V/TV2V leaderboard surface.
 
 `variants.legacy_pronoun_20260620.jsonl` remains only as a frozen provenance
 artifact for released T2V result metadata and OSS verification. The generic

@@ -54,9 +54,21 @@ class InSpatioAdapter:
         dominant_axis = int(np.argmax(np.max(np.abs(translation), axis=0)))
         displacement = translation[:, dominant_axis].astype(np.float32)
         if trajectory.camera_type:
-            script = parse_camera_script(trajectory.camera_type)
+            camera_type = str(trajectory.camera_type)
+            preset_kinds = {
+                "static": {"static"},
+                "yaw_LR": {"yaw"},
+                "yaw_RL": {"yaw"},
+                "pan_LR": {"pan"},
+                "pan_RL": {"pan"},
+            }
+            if camera_type in preset_kinds:
+                kinds = preset_kinds[camera_type]
+            else:
+                script = parse_camera_script(camera_type)
+                kinds = {action.kind for action in script.actions}
             allowed = {"static", "yaw", "pitch", "pan", "dolly"}
-            unsupported = sorted({a.kind for a in script.actions if a.kind not in allowed})
+            unsupported = sorted(kinds - allowed)
             if unsupported:
                 raise ValueError(f"InSpatio official payload does not support actions: {unsupported}")
         out = ensure_work_dir(work_dir) / "inspatio_per_frame_trajectory.txt"

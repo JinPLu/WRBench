@@ -47,7 +47,8 @@ All WRBench generations use a text prompt. The model `input_kind` records the ex
 | Mode | Extra input | How camera control is provided | Examples |
 |------|-------------|--------------------------------|----------|
 | First-frame / TI2V | Natural-25 first-frame image | Pose path, action tokens, or model-specific camera payload | Wan-Fun, EasyAnimate, VerseCrafter, MagicWorld, Hunyuan WorldPlay, Lingbot, minWM-HY |
-| Source-video / TV2V | Source video clip | Re-render or camera-conditioned source-video contract | Hydra, Gen3C, LiveWorld, ReCamMaster, Spatia, InSpatio World |
+| Source-video / TV2V | Temporal source video clip | Re-render or camera-conditioned source-video contract | Hydra, Gen3C, ReCamMaster, InSpatio World |
+| Source-wrapped first-frame / TI2V | Source wrapper extracts frame 0 | First-frame image plus geometry/camera controls | LiveWorld, Spatia |
 | Prompt plus controls / T2V | None beyond prompt | Native camera tokens or model-specific prompt/control files | minWM Wan Action2V, reported in a separate T2V track rather than the 23-model main table |
 | API prompt-camera | No explicit pose input | Camera instruction is written into the prompt | Kling, Hailuo, Wan API, HappyHorse |
 
@@ -84,9 +85,14 @@ D1-CamPrec applies to models with explicit pose or trajectory targets. API and p
 | Published 23-model results | [WRBench/wrbench-results](https://huggingface.co/datasets/WRBench/wrbench-results) |
 | Human annotation verdicts | [WRBench/wrbench-human-annotations](https://huggingface.co/datasets/WRBench/wrbench-human-annotations) |
 | Benchmark videos and per-video scores | [WRBench/wrbench-videos](https://huggingface.co/datasets/WRBench/wrbench-videos) |
+| Frozen paper reproducibility contract | [`paper_main_20260608`](src/wrbench/data/natural25/releases/paper_main_20260608/README.md) |
 
-The main Hugging Face configs load directly with `datasets`: `variants`,
-`model_scores`, `pairs`, and `videos_master`.
+The compatibility Hugging Face configs load directly with `datasets`:
+`variants`, `model_scores`, `pairs`, and `videos_master`. The immutable local
+release directory pins the exact paper prompts, camera denominator, TV2V source
+assets, and HyDRA evaluation policy. The 9,600-row paper table stays frozen even
+when the public video dataset expands; the current rolling dataset has 11,100
+rows.
 
 ---
 
@@ -96,22 +102,46 @@ Results for 23 models on the WRBench diagnostic profile (9,600 generated videos,
 
 This is the frozen 23-model main table. Prompt-only T2V addenda are tracked separately; see [docs/eval/README.md](docs/eval/README.md) for the public scope and promotion rules.
 
+Validate the paper contract and inspect its bundled paths from an installed
+package:
+
+```python
+from wrbench.datasets import natural25_release_dir
+from wrbench.release_validation import validate_natural25_release
+
+print(natural25_release_dir("paper_main_20260608"))
+print(validate_natural25_release("paper_main_20260608"))
+```
+
+Prepare the 100 pinned source videos without guessing local paths:
+
+```bash
+python scripts/prepare_paper_tv2v_sources.py \
+  --source-video-root ./paper_tv2v_sources \
+  --plan
+```
+
 <details open>
-<summary><b>Camera-trained and video-to-video models</b></summary>
+<summary><b>Camera-trained and controlled-view models</b></summary>
 
 | Model | CamPrec ↑ | CamAlign ↑ | D2 ↑ | D3 ↑ | D4 ↑ | D5 ↑ | D6 ↑ |
 |-------|-----------|-----------|------|------|------|------|------|
-| Hydra | **0.822** | 0.999 | 0.691 | 0.648 | 0.500 | 0.509 | 0.445 |
-| LiveWorld | 0.812 | 0.977 | 0.775 | 0.703 | 0.541 | 0.661 | 0.600 |
-| VerseCrafter | 0.781 | 0.904 | 0.846 | 0.707 | 0.508 | 0.607 | 0.584 |
-| Wan-Fun 2.1-1.3B | 0.771 | 0.882 | 0.842 | 0.725 | 0.513 | 0.709 | 0.657 |
-| Wan-Fun 2.2-A14B | 0.758 | 0.761 | **0.848** | **0.810** | **0.625** | 0.698 | 0.649 |
-| Wan-Fun 2.1-14B | 0.757 | 0.740 | 0.846 | 0.733 | 0.530 | 0.659 | 0.621 |
-| Wan-Fun 2.2-5B | 0.724 | 0.513 | 0.812 | 0.805 | 0.607 | 0.709 | 0.664 |
-| ReCamMaster | 0.717 | 0.940 | 0.740 | 0.715 | 0.535 | 0.665 | 0.616 |
-| Spatia | 0.704 | 0.620 | 0.763 | 0.731 | 0.541 | 0.600 | 0.586 |
-| Gen3C | 0.699 | 0.902 | 0.749 | 0.723 | 0.558 | 0.681 | 0.640 |
-| InSpatio World 14B | 0.693 | 0.835 | 0.824 | 0.821 | 0.668 | **0.734** | 0.664 |
+| HyDRA‡ | 0.822 | 0.855 | 0.691 | 0.648 | 0.500 | 0.509 | 0.445 |
+| LiveWorld | 0.812 | 0.856 | 0.775 | 0.703 | 0.541 | 0.661 | 0.600 |
+| VerseCrafter | 0.781 | 0.667 | 0.846 | 0.707 | 0.508 | 0.607 | 0.584 |
+| Wan-Fun 2.1-1.3B | 0.771 | 0.729 | 0.842 | 0.725 | 0.513 | 0.709 | 0.657 |
+| Wan-Fun 2.2-A14B | 0.758 | 0.553 | **0.848** | **0.810** | **0.625** | 0.698 | 0.649 |
+| Wan-Fun 2.1-14B | 0.757 | 0.526 | 0.846 | 0.733 | 0.530 | 0.659 | 0.621 |
+| Wan-Fun 2.2-5B | 0.724 | 0.335 | 0.812 | 0.805 | 0.607 | 0.709 | 0.664 |
+| ReCamMaster | 0.717 | 0.729 | 0.740 | 0.715 | 0.535 | 0.665 | 0.616 |
+| Spatia | 0.704 | 0.482 | 0.763 | 0.731 | 0.541 | 0.600 | 0.586 |
+| Gen3C | 0.699 | 0.764 | 0.749 | 0.723 | 0.558 | 0.681 | 0.640 |
+| InSpatio World 14B | 0.693 | 0.661 | 0.824 | 0.821 | 0.668 | **0.734** | 0.664 |
+
+‡ HyDRA's frozen CamPrec value retains legacy full-concatenation pose
+reconstruction followed by a post-hoc slice. Its maintained CamAlign value
+uses generated-only poses, so 0.822 is provenance rather than directly
+comparable evidence of best camera execution.
 
 </details>
 
@@ -120,11 +150,11 @@ This is the frozen 23-model main table. Prompt-only T2V addenda are tracked sepa
 
 | Model | CamPrec ↑ | CamAlign ↑ | D2 ↑ | D3 ↑ | D4 ↑ | D5 ↑ | D6 ↑ |
 |-------|-----------|-----------|------|------|------|------|------|
-| MagicWorld | 0.764 | 0.851 | 0.543 | 0.623 | 0.458 | 0.584 | 0.574 |
-| Hunyuan WorldPlay | 0.708 | 0.401 | 0.870 | 0.737 | 0.523 | 0.640 | 0.603 |
-| Hunyuan GameCraft | 0.534 | 0.464 | 0.705 | 0.672 | 0.440 | 0.554 | 0.490 |
-| Lingbot World | 0.513 | 0.220 | 0.870 | 0.876 | 0.735 | 0.717 | 0.663 |
-| Lingbot Act | 0.468 | 0.326 | 0.856 | 0.874 | 0.719 | 0.771 | **0.725** |
+| MagicWorld | 0.764 | 0.720 | 0.543 | 0.623 | 0.458 | 0.584 | 0.574 |
+| Hunyuan WorldPlay | 0.708 | 0.261 | 0.870 | 0.737 | 0.523 | 0.640 | 0.603 |
+| Hunyuan GameCraft | 0.534 | 0.361 | 0.705 | 0.672 | 0.440 | 0.554 | 0.490 |
+| Lingbot World | 0.513 | 0.175 | 0.870 | 0.876 | 0.735 | 0.717 | 0.663 |
+| Lingbot Act | 0.468 | 0.168 | 0.856 | 0.874 | 0.719 | 0.771 | **0.725** |
 
 </details>
 
@@ -280,7 +310,8 @@ The frozen public main table covers 23 models across four primary control paradi
 
 | Paradigm | Model input | Examples | Camera metric |
 |----------|-------------|----------|---------------|
-| **TV2V / source-video** | Source video + prompt | Hydra, Gen3C, LiveWorld, ReCamMaster, Spatia, InSpatio World | D1-CamPrec when a target trajectory is compiled |
+| **TV2V / temporal source-video** | Temporal source video + prompt | Hydra, Gen3C, ReCamMaster, InSpatio World | D1-CamPrec when a target trajectory is compiled |
+| **TI2V / source-wrapped first frame** | Frame 0 extracted from a source wrapper + prompt | LiveWorld, Spatia | D1-CamPrec when a target trajectory is compiled |
 | **Camera-conditioned / TI2V** | First-frame image + prompt | Wan-Fun series, EasyAnimate, VerseCrafter, Lingbot, minWM-HY | D1-CamPrec |
 | **Interactive / action-driven** | First-frame image + prompt + native actions | Hunyuan WorldPlay, Hunyuan GameCraft, MagicWorld | D1-CamPrec or adapter-specific camera diagnostics |
 | **API prompt-camera** | Prompt-only camera instruction | Kling, Hailuo, Wan API, HappyHorse | D1-CamAlign |
@@ -315,14 +346,15 @@ Two files + one import line. See [docs/adding-a-model.md](docs/adding-a-model.md
 | Artifact | Location |
 |----------|----------|
 | Natural-25 scene/event prompts | `src/wrbench/data/natural25/` (bundled in package) |
-| Natural-25 pre-generated TI2V prompt variants | `src/wrbench/data/natural25/variants.jsonl` |
+| Frozen paper prompt/camera/source contract | `src/wrbench/data/natural25/releases/paper_main_20260608/` |
+| Current deterministic toolkit prompt variants | `src/wrbench/data/natural25/variants.jsonl` |
 | Natural-25 released first frames | `src/wrbench/data/natural25/first_frames/` |
 | Published 23-model results | `src/wrbench/data/results/wrbench_23model_results.{csv,json}` |
 | Hugging Face release hub | [WRBench collection](https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26) |
 | Natural-25 public dataset | [WRBench/wrbench-natural25](https://huggingface.co/datasets/WRBench/wrbench-natural25) |
 | Published results public dataset | [WRBench/wrbench-results](https://huggingface.co/datasets/WRBench/wrbench-results) |
 | Human annotation verdicts (2,547) | [WRBench/wrbench-human-annotations](https://huggingface.co/datasets/WRBench/wrbench-human-annotations) |
-| Benchmark videos (9,600) | [WRBench/wrbench-videos](https://huggingface.co/datasets/WRBench/wrbench-videos) |
+| Benchmark videos (9,600 frozen paper rows; 11,100 rolling public rows) | [WRBench/wrbench-videos](https://huggingface.co/datasets/WRBench/wrbench-videos) |
 | Interactive leaderboard | [WRBench/wrbench-leaderboard](https://huggingface.co/spaces/WRBench/wrbench-leaderboard) |
 
 ---
