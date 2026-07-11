@@ -13,6 +13,7 @@ from wrbench.datasets import (
     NATURAL25_RELEASE_CORE_FILES,
     available_natural25_releases,
     load_jsonl,
+    load_natural25_release_index,
     load_natural25_release_manifest,
     natural25_release_dir,
     natural25_release_path,
@@ -225,3 +226,58 @@ def test_release_files_and_manifest_load_from_installed_package_layout() -> None
     assert manifest["scores_changed"] is False
     assert manifest["video_bytes_changed"] is False
     assert manifest["current_video_dataset_rows"] == 11100
+
+
+def test_release_index_records_live_cross_repository_publication() -> None:
+    index = load_natural25_release_index()
+
+    assert index["github"] == {
+        "contract_commit": "6c47fc6dbcdc7b90ea83e8aaf0f038035d933614",
+        "release_tag": "v0.1.1",
+        "repository": "JinPLu/WRBench",
+    }
+    assert index["hugging_face"]["immutable_tag"] == "paper-main-20260608-repro-v1"
+    assert index["hugging_face"]["natural25"]["commit"] == "214ed8cd5cb3494bcfe332c06fa1db8bdff9edd8"
+    assert index["hugging_face"]["videos"]["commit"] == "2de5487a6ac0e5d1f551a8d6e1c83b9e00f73d66"
+    assert index["hugging_face"]["natural25"]["configs"] == {
+        "paper_tv2v_sources": {"columns": 38, "rows": 100},
+        "paper_variants_api_source": {"columns": 9, "rows": 400},
+        "paper_variants_local": {"columns": 9, "rows": 400},
+    }
+    assert index["hugging_face"]["videos"]["configs"] == {
+        "paper_camera_scope": {"columns": 25, "rows": 23},
+        "tv2v_source_videos": {"columns": 46, "rows": 100},
+        "videos_master": {"columns": 45, "rows": 11100},
+    }
+    for surface in ("natural25", "videos"):
+        assert index["hugging_face"][surface]["viewer"] == {
+            "failed_jobs": 0,
+            "first_rows_readable": True,
+            "pending_jobs": 0,
+            "splits_readable": True,
+        }
+    expected_hashes = index["artifact_hashes"]
+    assert expected_hashes["release_manifest.json"] == _sha256(
+        natural25_release_path("release_manifest.json")
+    )
+    for relative_path in (
+        "README.md",
+        "camera_scope.json",
+        "camera_scopes/api_prompt_camera.json",
+        "camera_scopes/local_dual_angle.json",
+        "camera_scopes/local_static.json",
+        "hydra_evaluation_policy.json",
+        "prompt_usage.json",
+        "tv2v_sources.jsonl",
+        "variants.api_source.jsonl",
+        "variants.local_ti2v_tv2v.jsonl",
+    ):
+        assert expected_hashes[relative_path] == _sha256(natural25_release_path(relative_path))
+    assert index["verification"] == {
+        "paper_model_count": 23,
+        "paper_video_rows": 9600,
+        "scores_changed": False,
+        "source_assets_revision": VIDEO_ASSET_REVISION,
+        "verified_at_utc": "2026-07-11T19:58:31Z",
+        "video_bytes_changed": False,
+    }

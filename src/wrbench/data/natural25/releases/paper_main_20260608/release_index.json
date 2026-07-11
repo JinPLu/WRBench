@@ -1,0 +1,87 @@
+{
+  "artifact_hashes": {
+    "README.md": "b6de8b3f9eadf492e1566fd1e2f07600ef852527d041b1224b336d416a688cdf",
+    "camera_scope.json": "ab6e5b8970fb16c784f1b528b2bcd5dbb67c98b025a037e74efca69b6f57c8bb",
+    "camera_scopes/api_prompt_camera.json": "bac63c661903c8e9207e9a47adcd5c185bc074e6204884ded2d3a9aabdc0428b",
+    "camera_scopes/local_dual_angle.json": "449bde6863d2c31f75331deb8e4b1119b71a9a93a2490fe114771a26f9a25848",
+    "camera_scopes/local_static.json": "375cb374813fba1a6b8c7923efcfebb0b62ea751ff6a6c4734cef455acdd475b",
+    "hydra_evaluation_policy.json": "7e78c77ab7972ab75c723963c9d1bf33081223cc306da936bc83feee188ff95e",
+    "prompt_usage.json": "b9ada8903cb63edad6929773c19409dfda7e137b7d6d63cd9d3c51c26ec93d94",
+    "release_manifest.json": "e80495efa7d2317b46c7885edc6c2317ab6d8f17cef49401dc2f30a6d87831e0",
+    "tv2v_sources.jsonl": "807e1ea38f2c198fb37b1f23fed00c89b092b3207fc943293b2ec3b78f1fdbba",
+    "variants.api_source.jsonl": "ce4eea268ee0c0f7fb379be8a51eb9920e66cee1e18ad82dd7111eb9c99a2ad7",
+    "variants.local_ti2v_tv2v.jsonl": "19d99d90b40fe3453d74a634d615403fe4721597422f1d9d433df1611901ac7e"
+  },
+  "github": {
+    "contract_commit": "6c47fc6dbcdc7b90ea83e8aaf0f038035d933614",
+    "release_tag": "v0.1.1",
+    "repository": "JinPLu/WRBench"
+  },
+  "hugging_face": {
+    "immutable_tag": "paper-main-20260608-repro-v1",
+    "natural25": {
+      "commit": "214ed8cd5cb3494bcfe332c06fa1db8bdff9edd8",
+      "configs": {
+        "paper_tv2v_sources": {
+          "columns": 38,
+          "rows": 100
+        },
+        "paper_variants_api_source": {
+          "columns": 9,
+          "rows": 400
+        },
+        "paper_variants_local": {
+          "columns": 9,
+          "rows": 400
+        }
+      },
+      "release_root": "original/releases/paper_main_20260608",
+      "repository": "WRBench/wrbench-natural25",
+      "viewer": {
+        "failed_jobs": 0,
+        "first_rows_readable": true,
+        "pending_jobs": 0,
+        "splits_readable": true
+      }
+    },
+    "videos": {
+      "commit": "2de5487a6ac0e5d1f551a8d6e1c83b9e00f73d66",
+      "configs": {
+        "paper_camera_scope": {
+          "columns": 25,
+          "rows": 23
+        },
+        "tv2v_source_videos": {
+          "columns": 46,
+          "rows": 100
+        },
+        "videos_master": {
+          "columns": 45,
+          "rows": 11100
+        }
+      },
+      "repository": "WRBench/wrbench-videos",
+      "viewer": {
+        "failed_jobs": 0,
+        "first_rows_readable": true,
+        "pending_jobs": 0,
+        "splits_readable": true
+      },
+      "videos_master_sha256": {
+        "csv": "17c7cc17f9037580d6555c1e666681a71fcc486a65cbe0d379347f54925e8285",
+        "jsonl": "2c3cef32cf451ffb16e7ed61cfa962451537b398cdc69b4f1495a6c281943a6c",
+        "parquet": "b180ff4552e2cd70afbc8b0829ea7aeb852286e1ccdbe1bf92cae6b00aab8907"
+      }
+    }
+  },
+  "release_id": "paper_main_20260608",
+  "schema_version": "wrbench.paper_release_index.v1",
+  "verification": {
+    "paper_model_count": 23,
+    "paper_video_rows": 9600,
+    "scores_changed": false,
+    "source_assets_revision": "8a927b9322c5d8af6474399ce4840ef4148f8e39",
+    "verified_at_utc": "2026-07-11T19:58:31Z",
+    "video_bytes_changed": false
+  }
+}
