@@ -1,0 +1,22 @@
+{
+  "cells": [
+    {"camera_type": "static", "requested_yaw_deg": null},
+    {"camera_type": "yaw_LR", "requested_yaw_deg": null},
+    {"camera_type": "yaw_RL", "requested_yaw_deg": null}
+  ],
+  "control_semantics": "prompt-camera intent; no requested 30/60-degree distinction and no fabricated target C2W",
+  "expected_rows": 2100,
+  "models": [
+    "hailuo_2_3",
+    "happyhorse_1_0_i2v",
+    "kling_v2_6",
+    "wan2_2_i2v_plus",
+    "wan2_6_i2v",
+    "wan2_7_i2v",
+    "wanx2_1_i2v_turbo"
+  ],
+  "prompt_catalog_id": "api_source",
+  "rows_per_cell_per_model": 100,
+  "schema_version": "wrbench.camera_scope.v1",
+  "scope_id": "paper_main_20260608.api_prompt_camera"
+}

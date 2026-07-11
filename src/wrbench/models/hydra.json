@@ -24,6 +24,8 @@
   "default_width": 832,
   "input_kind": "source_video",
   "key": "hydra",
+  "model_input": "TV2V",
   "payload_type": "hydra_split_camera_json",
+  "source_video_usage": "temporal_conditioning_source_video",
   "status": "active"
 }

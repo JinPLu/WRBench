@@ -77,6 +77,8 @@ import json
 
 import wrbench
 from wrbench.datasets import (
+    NATURAL25_PAPER_RELEASE_ID,
+    NATURAL25_RELEASE_CORE_FILES,
     load_jsonl,
     load_natural25_families,
     natural25_families_path,
@@ -84,11 +86,14 @@ from wrbench.datasets import (
     natural25_first_frames_dir,
     natural25_first_frames_manifest_path,
     natural25_legacy_variants_path,
+    natural25_release_dir,
+    natural25_release_path,
     natural25_t2v_event_tails_path,
     natural25_variants_path,
     published_t2v_results_json,
 )
 from wrbench.eval.runtime import contract_path
+from wrbench.release_validation import validate_natural25_release
 from wrbench.t2v import validate_subject_anchored_prompt
 
 families = load_natural25_families()
@@ -120,6 +125,11 @@ bad_t2v_tails = [
     and not validate_subject_anchored_prompt(f"Scene. background. {t2v_event_tails[row['variant_id']]}")
 ]
 assert not bad_t2v_tails, bad_t2v_tails[:5]
+paper_release = validate_natural25_release(NATURAL25_PAPER_RELEASE_ID)
+assert wrbench.__version__ == "0.1.1", wrbench.__version__
+assert paper_release["status"] == "ok", paper_release
+assert paper_release["paper_video_rows"] == 9600, paper_release
+assert all(natural25_release_path(path).is_file() for path in NATURAL25_RELEASE_CORE_FILES)
 
 print(
     "models", len(wrbench.list_models()),
@@ -127,6 +137,8 @@ print(
     "natural25", natural25_families_path(),
     "first_frames", len(frames),
     "variants", len(variants),
+    "paper_release", natural25_release_dir(),
+    "paper_sources", paper_release["source_rows"]["rows"],
 )
 PY
 deactivate

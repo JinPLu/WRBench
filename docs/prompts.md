@@ -67,11 +67,10 @@ print(len(variants))  # 400 = 25 families × 4 event tiers × 4 camera gaps
 print(variants[0]["ti2v_prompt"])
 ```
 
-Each variant's `ti2v_prompt` is the **first-frame-anchored video prompt** used
-by TI2V, TV2V, and API I2V runs. It can include the Natural-25 T2I/TI2V scene
-style language because the first frame carries the exact initial layout. The
-active file intentionally keeps the original pronoun-anchored event sentences
-for compatibility with the released TI2V/TV2V benchmark artifacts.
+Each variant's `ti2v_prompt` is a current deterministic, first-frame-anchored
+toolkit prompt. It is kept for compatibility, but it is not the file of record
+for the frozen paper table. Exact paper prompts are versioned under
+`src/wrbench/data/natural25/releases/paper_main_20260608/`.
 
 Text-only models have no first frame, so Natural-25 ships a separate
 layout-anchored prompt profile for T2V runs:
@@ -100,11 +99,22 @@ lighting, palette, or model-specific wording from T2I prompts. Camera control
 is still supplied by the benchmark camera scope and backend payload, not by
 natural-language camera clauses.
 
-The published 23-model reference table and the active TI2V/TV2V prompt file use
-the pronoun-anchored prompt set, also frozen at
-`src/wrbench/data/natural25/variants.legacy_pronoun_20260620.jsonl` for
-byte-for-byte reproduction.
-See `src/wrbench/data/results/README.md`.
+The frozen paper release has two distinct prompt surfaces:
+
+- `variants.local_ti2v_tv2v.jsonl` is the exact local-generation catalog. Its
+  100 `oov_gap=none` rows supplied content prompts while camera control was
+  separate.
+- `variants.api_source.jsonl` is the historical API source catalog. Its
+  `static`, `yaw_LR`, and `yaw_RL` rows are not automatically identical to a
+  provider-specific `prompt_to_send`; exact request wording requires request
+  evidence.
+
+`prompt_usage.json` maps every frozen model to exactly one catalog. See
+`src/wrbench/data/results/README.md` for the corresponding 23-model scope.
+The TV2V source manifest separately preserves all 100 exact Wan2.7 provider
+request sidecars. Seventy-five are represented by a frozen catalog; 25
+`T2_div_a` requests predate both catalogs. Their task-to-static asset mapping is
+not a claim of prompt-text equality.
 
 **Deterministic path** (no LLM): rebuild Natural-25 style variants from bundled data or custom inputs.
 

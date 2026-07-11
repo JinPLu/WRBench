@@ -2,7 +2,8 @@
 
 | Field | Value |
 |---|---|
-| Input | `source_video` |
+| Runtime input | `source_video` wrapper |
+| Benchmark model input | `TI2V` (`first_frame_extraction`) |
 | Adapter | `spatia` |
 | Payload type | `spatia_w2c_trajectory_files` |
 | Default frames | `121` |
@@ -25,5 +26,9 @@ wrbench.compile_camera(model="spatia", camera="yaw:left:60@40,yaw:right:60@41", 
 ## Real generation
 
 WRBench compiles the model-native payload and sidecars locally. Real video generation requires the model's own environment (weights, GPU, venv). See the upstream model repository and use the compiled `.payload.json` / sidecars as inputs.
+
+Spatia's wrapper extracts frame 0 for the official image path. It is not a
+temporal TV2V model for WRBench taxonomy, even though the runtime argument is a
+source-video path.
 
 Use `wrbench doctor --model spatia` to inspect the current backend status and required runtime fields.

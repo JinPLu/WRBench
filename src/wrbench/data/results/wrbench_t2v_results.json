@@ -8,7 +8,7 @@
     "src/wrbench/data/natural25/t2v_layout_anchors.jsonl",
     "src/wrbench/data/natural25/t2v_event_tails.jsonl"
   ],
-  "legacy_main_table_prompt": "src/wrbench/data/natural25/variants.legacy_pronoun_20260620.jsonl",
+  "frozen_main_table_prompt_contract": "src/wrbench/data/natural25/releases/paper_main_20260608/prompt_usage.json",
   "benchmark_definition": {
     "dataset": "Natural-25",
     "leaderboard_track": "t2v_rotation_stress",

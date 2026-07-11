@@ -1,0 +1,31 @@
+{
+  "cells": [
+    {"camera_type": "yaw_LR", "requested_yaw_deg": 30},
+    {"camera_type": "yaw_RL", "requested_yaw_deg": 30},
+    {"camera_type": "yaw_LR", "requested_yaw_deg": 60},
+    {"camera_type": "yaw_RL", "requested_yaw_deg": 60}
+  ],
+  "expected_rows": 6400,
+  "models": [
+    "gen3c",
+    "hunyuan_game_craft",
+    "hunyuan_worldplay",
+    "hydra",
+    "inspatio_world_14b",
+    "lingbot_world",
+    "lingbot_world_act",
+    "liveworld",
+    "magicworld",
+    "recammaster",
+    "spatia",
+    "versecrafter",
+    "wan21_fun_14b_cam",
+    "wan21_fun_1p3b_cam",
+    "wan22_fun_5b_cam",
+    "wan22_fun_a14b_cam"
+  ],
+  "prompt_catalog_id": "local_ti2v_tv2v",
+  "rows_per_cell_per_model": 100,
+  "schema_version": "wrbench.camera_scope.v1",
+  "scope_id": "paper_main_20260608.local_dual_angle"
+}

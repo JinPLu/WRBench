@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import json
+import re
 from importlib import resources
 from pathlib import Path
 from typing import Any, Iterator
@@ -14,6 +15,21 @@ NATURAL25_PROMPT_PROFILES: tuple[str, ...] = (
     PROMPT_PROFILE_TI2V_ACTIVE,
     PROMPT_PROFILE_T2V_LAYOUT_ANCHOR,
 )
+
+NATURAL25_PAPER_RELEASE_ID = "paper_main_20260608"
+NATURAL25_RELEASE_CORE_FILES: tuple[str, ...] = (
+    "README.md",
+    "variants.local_ti2v_tv2v.jsonl",
+    "variants.api_source.jsonl",
+    "prompt_usage.json",
+    "camera_scope.json",
+    "camera_scopes/local_dual_angle.json",
+    "camera_scopes/local_static.json",
+    "camera_scopes/api_prompt_camera.json",
+    "tv2v_sources.jsonl",
+    "hydra_evaluation_policy.json",
+)
+_RELEASE_ID_RE = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 
 
 def _package_data_dir() -> Path:
@@ -26,6 +42,76 @@ def data_dir() -> Path:
 
 def natural25_dir() -> Path:
     return data_dir() / "natural25"
+
+
+def natural25_releases_dir() -> Path:
+    """Return the immutable Natural-25 release root shipped in the package."""
+    return natural25_dir() / "releases"
+
+
+def available_natural25_releases() -> tuple[str, ...]:
+    """List bundled immutable Natural-25 release identifiers."""
+    root = natural25_releases_dir()
+    if not root.is_dir():
+        return ()
+    return tuple(sorted(path.name for path in root.iterdir() if path.is_dir()))
+
+
+def natural25_release_dir(release_id: str = NATURAL25_PAPER_RELEASE_ID) -> Path:
+    """Locate a named immutable Natural-25 release bundled with WRBench."""
+    release = str(release_id or "").strip()
+    if not _RELEASE_ID_RE.fullmatch(release):
+        raise ValueError(f"invalid Natural-25 release_id {release_id!r}")
+    path = natural25_releases_dir() / release
+    if not path.is_dir():
+        raise FileNotFoundError(f"Natural-25 release not found: {release!r}")
+    return path
+
+
+def natural25_release_path(
+    relative_path: str | Path,
+    *,
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> Path:
+    """Resolve one release-relative artifact without allowing path traversal."""
+    relative = Path(relative_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise ValueError(f"release artifact path must be relative: {relative_path!r}")
+    root = natural25_release_dir(release_id).resolve()
+    path = (root / relative).resolve()
+    try:
+        path.relative_to(root)
+    except ValueError as exc:
+        raise ValueError(f"release artifact escapes release root: {relative_path!r}") from exc
+    if not path.is_file():
+        raise FileNotFoundError(f"Natural-25 release artifact not found: {path}")
+    return path
+
+
+def natural25_release_manifest_path(
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> Path:
+    return natural25_release_path("release_manifest.json", release_id=release_id)
+
+
+def natural25_release_tv2v_sources_path(
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> Path:
+    return natural25_release_path("tv2v_sources.jsonl", release_id=release_id)
+
+
+def load_natural25_release_manifest(
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> dict[str, Any]:
+    """Load a named immutable paper-release manifest."""
+    payload = json.loads(natural25_release_manifest_path(release_id).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Natural-25 release manifest {release_id!r} must be an object")
+    if payload.get("release_id") != release_id:
+        raise ValueError(
+            f"Natural-25 release directory {release_id!r} contains manifest for {payload.get('release_id')!r}"
+        )
+    return payload
 
 
 def natural25_families_path() -> Path:

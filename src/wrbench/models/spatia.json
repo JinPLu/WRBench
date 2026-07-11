@@ -47,6 +47,9 @@
   },
   "input_kind": "source_video",
   "key": "spatia",
+  "model_input": "TI2V",
+  "notes": "Spatia uses a source-video wrapper to extract frame 0 for its official image path; it is first-frame TI2V rather than temporal TV2V conditioning.",
   "payload_type": "spatia_w2c_trajectory_files",
+  "source_video_usage": "first_frame_extraction",
   "status": "active"
 }
