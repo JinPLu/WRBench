@@ -1,21 +1,13 @@
-# Backends
+# Generation backends
 
-WRBench can either compile camera payloads/sidecars (`dry_run=True`) or launch a
-configured generation backend (`dry_run=False`).
+`wrbench generate` compiles payloads and sidecars by default. Real generation is enabled only with `--no-dry-run` and a runtime configuration.
 
-## Built-in backends
+## Configure a backend
 
-| Backend | Name | When used |
-| --- | --- | --- |
-| Compile-only | `dry_run` | No GPU, no weights |
-| Local subprocess | `local_subprocess` | Requires an explicit `wrbench.runtime.json` for a supported model |
-
-## Configure local subprocess generation
-
-1. Copy [`wrbench.runtime.example.json`](../../wrbench.runtime.example.json) to
-   a local runtime config file.
-2. Fill in `python_bin`, `repo_root`, and model-specific paths.
-3. Run:
+1. Copy [`wrbench.runtime.example.json`](../../wrbench.runtime.example.json) to an untracked `wrbench.runtime.json`.
+2. Fill in the upstream Python interpreter, repository, checkpoint, and model-specific paths.
+3. Check the model record and adapter with `wrbench doctor --model <model-key>`.
+4. Run the same compile command with `--runtime-config` and `--no-dry-run`.
 
 ```bash
 IMAGE="$(python - <<'PY'
@@ -34,64 +26,23 @@ wrbench generate \
   --no-dry-run
 ```
 
-## Reference Models
+The runtime file is the only place for machine-specific paths. Do not add checkpoints, credentials, or upstream repository paths to model JSON files.
 
-| Model | Kind | Backend support |
-| --- | --- | --- |
-| `easyanimate-v51-camera` | TI2V | `local_subprocess` (EasyAnimate `predict_v2v_control.py`) |
-| `spatia` | TV2V | `local_subprocess` (Spatia `inference.py`) |
-| `gen3c` | TV2V | Documented `execution_contract`; backend planned (ViPE + in-process pipeline) |
+## Built-in execution modes
 
-### EasyAnimate notes
+| Mode | Behavior |
+| --- | --- |
+| Compile-only (default) | Writes model-native controls and audit sidecars; no model environment is required |
+| `local_subprocess` | Launches a supported upstream model in its configured environment |
 
-- Uses **script materialization** (patch top-level defaults in
-  `predict_v2v_control.py`); CLI flags alone are not sufficient.
-- Set `PYTHONPATH` to the EasyAnimate repo root and use the model-dedicated venv.
-- Disable teacache via `extra_paths.enable_teacache: "false"` when `flash-attn`
-  is unavailable.
+Supported launchers and their required runtime fields are defined by the model records and [`wrbench.runtime.example.json`](../../wrbench.runtime.example.json). Run `wrbench models` for the current registry instead of relying on a duplicated model list here.
 
-### Spatia notes
+## Add backend support
 
-- Requires **absolute** `--out` paths (subprocess cwd is the Spatia repo).
-- Configure `extra_paths.ffmpeg_bin` in `wrbench.runtime.json`; Spatia frame
-  extraction does not fall back to ambient `PATH` tools.
+1. Add or reuse a `GenerationBackend` under `src/wrbench/backends/`.
+2. For subprocess execution, add a launcher under `src/wrbench/backends/launchers/`.
+3. Connect it to the model's execution contract and runtime-config fields.
+4. Add focused tests under `tests/test_backends*.py`.
+5. Document only the new runtime fields in `wrbench.runtime.example.json`.
 
-## `execution_contract` schema
-
-Each model JSON may include an inline `execution_contract` (see
-`easyanimate-v51-camera.json`, `spatia.json`). Contract-driven adapters use it
-at compile time; backends use runtime paths to launch the upstream entrypoint.
-
-Required runtime fields per model entry in `wrbench.runtime.json`:
-
-- `python_bin` — venv Python for the upstream repo
-- `repo_root` — upstream repository root (cwd for subprocess)
-- `model_path` — weights/checkpoint root (TI2V models)
-- `extra_paths` — model-specific artifacts (e.g. Spatia `vace_path`, `lora_path`)
-- `gpu_id` — `CUDA_VISIBLE_DEVICES` value
-
-## Adding a backend
-
-1. Implement `GenerationBackend` in `src/wrbench/backends/`.
-2. Add a launcher under `src/wrbench/backends/launchers/` if subprocess-based.
-3. Register the model key in `LocalSubprocessBackend._SUPPORTED_MODELS` (or a
-   dedicated backend class).
-4. Document runtime fields here and in `wrbench.runtime.example.json`.
-5. Add tests under `tests/test_backends*.py`.
-
-## Python API
-
-```python
-import wrbench
-from wrbench.datasets import natural25_first_frame_path
-
-result = wrbench.compile_camera(
-    model="easyanimate-v51-camera",
-    camera="preset:yaw_LR",
-    image=natural25_first_frame_path("bedroom_cat_bed_jump"),
-    out="out.mp4",
-    prompt="A scene.",
-    dry_run=False,  # requires wrbench.runtime.json
-)
-print(result["generation"])
-```
+Model registry and adapter work is covered by [Adding a model](../adding-a-model.md).
