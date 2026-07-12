@@ -5,6 +5,40 @@ from __future__ import annotations
 from typing import Any, Final
 
 
+def load_model_explicit_cuda(
+    model_cls: Any,
+    *,
+    model_path: str,
+    dtype: Any,
+    attn_implementation: str,
+    local_rank: int,
+) -> Any:
+    """Load on CPU, then place one complete model on the selected CUDA device.
+
+    Avoiding ``device_map`` keeps the single-GPU path independent of Accelerate.
+    The dtype/torch_dtype retry preserves compatibility across Transformers
+    model classes.
+    """
+    common_kwargs = {
+        "trust_remote_code": True,
+        "local_files_only": True,
+        "attn_implementation": attn_implementation,
+    }
+    try:
+        model = model_cls.from_pretrained(model_path, dtype=dtype, **common_kwargs)
+    except TypeError:
+        model = model_cls.from_pretrained(model_path, torch_dtype=dtype, **common_kwargs)
+    return model.to(f"cuda:{int(local_rank)}")
+
+
+def explicit_cuda_placement_metadata(local_rank: int) -> dict[str, Any]:
+    return {
+        "device_map": None,
+        "device_placement": "explicit_model_to",
+        "model_device": f"cuda:{int(local_rank)}",
+    }
+
+
 def require_section(mapping: dict[str, Any], key: str, scope: str) -> dict[str, Any]:
     value = mapping.get(key)
     if not isinstance(value, dict):

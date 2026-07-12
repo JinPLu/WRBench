@@ -111,7 +111,7 @@
         "QWEN35_EVIDENCE_CONTEXT_MODE": "visibility_v1",
         "QWEN3VL_DTYPE": "bfloat16",
         "QWEN3VL_ATTN_IMPLEMENTATION": "flash_attention_2",
-        "QWEN3VL_MAX_NEW_TOKENS": "48",
+        "QWEN3VL_MAX_NEW_TOKENS": "768",
         "QWEN3VL_MAX_VIDEOS": "0",
         "QWEN3VL_BINARY_PROMPT_SCHEMA": "subject_judgeability_v1",
         "QWEN3VL_RESCUE_PROMPT_SCHEMA": "guarded_teacher_gate_v3"

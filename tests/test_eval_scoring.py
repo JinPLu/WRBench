@@ -85,6 +85,78 @@ def write_jsonl(path: Path, rows: list[dict[str, object]]) -> None:
     )
 
 
+def test_single_gpu_model_loading_does_not_require_accelerate_device_map() -> None:
+    class FakeModel:
+        calls: list[tuple[str, dict[str, object]]] = []
+
+        @classmethod
+        def from_pretrained(cls, path: str, **kwargs: object) -> "FakeModel":
+            cls.calls.append((path, kwargs))
+            return cls()
+
+        def to(self, device: str) -> "FakeModel":
+            self.device = device
+            return self
+
+    model = runtime_common.load_model_explicit_cuda(
+        FakeModel,
+        model_path="/models/qwen",
+        dtype="bf16-sentinel",
+        attn_implementation="flash_attention_2",
+        local_rank=3,
+    )
+
+    assert model.device == "cuda:3"
+    assert FakeModel.calls == [
+        (
+            "/models/qwen",
+            {
+                "dtype": "bf16-sentinel",
+                "trust_remote_code": True,
+                "local_files_only": True,
+                "attn_implementation": "flash_attention_2",
+            },
+        )
+    ]
+    assert "device_map" not in FakeModel.calls[0][1]
+    assert qwen35_mod.load_model_explicit_cuda is runtime_common.load_model_explicit_cuda
+    assert qwen3vl_mod.load_model_explicit_cuda is runtime_common.load_model_explicit_cuda
+    assert runtime_common.explicit_cuda_placement_metadata(3) == {
+        "device_map": None,
+        "device_placement": "explicit_model_to",
+        "model_device": "cuda:3",
+    }
+
+
+def test_single_gpu_model_loading_keeps_torch_dtype_compatibility_retry() -> None:
+    class LegacyModel:
+        calls: list[dict[str, object]] = []
+
+        @classmethod
+        def from_pretrained(cls, _path: str, **kwargs: object) -> "LegacyModel":
+            cls.calls.append(kwargs)
+            if "dtype" in kwargs:
+                raise TypeError("legacy model expects torch_dtype")
+            return cls()
+
+        def to(self, device: str) -> "LegacyModel":
+            self.device = device
+            return self
+
+    model = runtime_common.load_model_explicit_cuda(
+        LegacyModel,
+        model_path="/models/legacy-qwen",
+        dtype="bf16-sentinel",
+        attn_implementation="flash_attention_2",
+        local_rank=0,
+    )
+
+    assert model.device == "cuda:0"
+    assert "device_map" not in LegacyModel.calls[0]
+    assert "device_map" not in LegacyModel.calls[1]
+    assert LegacyModel.calls[1]["torch_dtype"] == "bf16-sentinel"
+
+
 def test_scoring_video_path_prefers_eval_video_path_then_path_then_video_path() -> None:
     assert (
         runtime_common.scoring_video_path(
@@ -1104,6 +1176,7 @@ def test_runtime_example_matches_wrbench_default_d3d6_profile() -> None:
 
     assert env["PROMPT_MODE"] == p25.P25_PROMPT_MODE
     assert env["TASK_CONTEXT_MODE"] == "none"
+    assert int(env["QWEN3VL_MAX_NEW_TOKENS"]) == qwen3vl_mod.DEFAULT_MAX_NEW_TOKENS
 
 
 def test_current_qwen35_profile_is_declared_without_overlay_install() -> None:

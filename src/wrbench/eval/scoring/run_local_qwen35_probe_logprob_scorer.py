@@ -38,7 +38,11 @@ try:
         question_for_probe,
         validate_prompt_mode,
     )
-    from .runtime_common import META_KEYS
+    from .runtime_common import (
+        META_KEYS,
+        explicit_cuda_placement_metadata,
+        load_model_explicit_cuda,
+    )
 except ImportError:
     from wrbench.eval.scoring.prompts_v2_probe import (
         CAMERA_MOTION_CONTEXT_KEY,
@@ -55,7 +59,11 @@ except ImportError:
         question_for_probe,
         validate_prompt_mode,
     )
-    from wrbench.eval.scoring.runtime_common import META_KEYS
+    from wrbench.eval.scoring.runtime_common import (
+        META_KEYS,
+        explicit_cuda_placement_metadata,
+        load_model_explicit_cuda,
+    )
 
 
 SCHEMA_VERSION = "runtime_v2_probe_logprob_v2"
@@ -961,24 +969,13 @@ class LocalQwen35ProbeLogprobScorer:
             video_processor.fetch_videos = fetch_videos_with_backend
 
         def load_with(model_cls: Any) -> Any:
-            try:
-                return model_cls.from_pretrained(
-                    str(model_path),
-                    trust_remote_code=True,
-                    local_files_only=True,
-                    dtype=dtype_obj,
-                    device_map={"": local_rank},
-                    attn_implementation=attn_implementation,
-                )
-            except TypeError:
-                return model_cls.from_pretrained(
-                    str(model_path),
-                    trust_remote_code=True,
-                    local_files_only=True,
-                    torch_dtype=dtype_obj,
-                    device_map={"": local_rank},
-                    attn_implementation=attn_implementation,
-                )
+            return load_model_explicit_cuda(
+                model_cls,
+                model_path=str(model_path),
+                dtype=dtype_obj,
+                attn_implementation=attn_implementation,
+                local_rank=local_rank,
+            )
 
         if loader_family == "qwen25vl":
             from transformers import Qwen2_5_VLForConditionalGeneration  # type: ignore
@@ -1257,7 +1254,7 @@ def build_run_config(
             else "processor_kwargs_fps"
         ),
         **scorer_metadata,
-        "device_map": {"": int(local_rank)},
+        **explicit_cuda_placement_metadata(local_rank),
         "local_rank": int(local_rank),
         "num_shards": int(args.num_shards),
         "shard_id": int(args.shard_id),
