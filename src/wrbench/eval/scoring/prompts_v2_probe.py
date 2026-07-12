@@ -44,6 +44,8 @@ PROMPT_MODE_P12_QWEN3VL_EVIDENCE_CONDITIONED = (
 PROMPT_MODE_P13_QWEN3VL_SUBQUESTION_CONDITIONED = (
     "runtime_v2_probe_logprob_p13_qwen3vl_subquestion_conditioned"
 )
+PROMPT_MODE_P22_NATIVE_D5D6 = "runtime_v2_probe_logprob_p22_native_d5d6_score_only"
+PROMPT_MODE_P25_D3D4_SLOT_PARSE = "runtime_v2_probe_logprob_p25_d3d4_slot_parse"
 PROMPT_MODE_QWEN36_35B_P9_SCORE = (
     "runtime_v2_probe_logprob_qwen36_35b_p9_score"
 )
@@ -66,6 +68,8 @@ SUPPORTED_PROMPT_MODES = {
     PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
     PROMPT_MODE_P12_QWEN3VL_EVIDENCE_CONDITIONED,
     PROMPT_MODE_P13_QWEN3VL_SUBQUESTION_CONDITIONED,
+    PROMPT_MODE_P22_NATIVE_D5D6,
+    PROMPT_MODE_P25_D3D4_SLOT_PARSE,
     PROMPT_MODE_QWEN36_35B_P9_SCORE,
     PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE,
 }
@@ -647,6 +651,161 @@ P11_D6_QUESTION_OVERRIDES: dict[str, str] = {
 }
 
 
+P25_D3D4_QUESTIONS: dict[str, str] = {
+    "D3_POSITION_RELATION": (
+        "During visible, judgeable moments, is the task-critical subject or target "
+        "in a plausible world-space position, relation, contact, placement, and "
+        "path relative to the parsed task slots and stable scene anchors?"
+    ),
+    "D3_STATIC_ANCHORS": (
+        "Do stable scene anchors support the same spatial interpretation for the "
+        "task-critical subject, target, support surface, destination, or region?"
+    ),
+    "D3_NEG_WRONG_SPATIAL": (
+        "Is there clear visible spatial counterevidence, such as the subject going "
+        "to the wrong target, wrong side, impossible placement, missing required "
+        "contact/support/containment, frame-locked sliding, or a path that "
+        "contradicts the parsed task slots?"
+    ),
+    "D4_ACTION_STATE": (
+        "Does visible evidence show the task-critical subject or target performing "
+        "or reaching the required action, pose, contact result, state change, or "
+        "final state from the parsed task slots?"
+    ),
+    "D4_TEMPORAL_PROGRESS": (
+        "Does the required action or state visibly progress, complete, or remain "
+        "maintained in a way consistent with the parsed task slots?"
+    ),
+    "D4_NEG_ABSENT_FREEZE": (
+        "Is there clear visible state counterevidence, such as absent action, wrong "
+        "behavior, freeze, loop, reset, regression, wrong final result, or an "
+        "impossible state transition relative to the parsed task slots?"
+    ),
+}
+
+
+def _p25_dimension_guidance(probe: RuntimeV2Probe) -> str:
+    if probe.dimension == "spatial_fidelity":
+        return """Spatial judgment guidance:
+- Use the parsed subject, target object, support surface, destination, and region to decide what spatial relation matters.
+- Judge coarse 3D world relation, contact, support, containment, placement, and path relative to stable anchors.
+- Do not require exact pixel position, identical camera framing, or a fully visible trajectory.
+- Camera motion, cropping, and brief hidden intervals are not spatial failures by themselves."""
+    return """Action/state judgment guidance:
+- Use the parsed subject, target object, required action, contact/result, and final state to decide what state evidence matters.
+- A clear final result or stable maintained state can support Yes even if the middle of the action is partly hidden.
+- Do not require perfect animation of every intermediate step when the visible evidence supports the requested result.
+- Camera motion, cropping, and brief hidden intervals are not state failures by themselves."""
+
+
+def _p25_answer_rule(probe: RuntimeV2Probe) -> str:
+    if probe.polarity == "negative":
+        return """How to answer this failure question:
+- Answer Yes only when clear visible video evidence shows the failure described in the question.
+- Do not answer Yes from weak motion, brief artifacts, ambiguous glimpses, or the task description alone.
+- If the failure is missing, unclear, or only possible but not visible, answer No."""
+    return """How to answer this support question:
+- Answer Yes when visible evidence reasonably supports the requested spatial relation, action, result, or maintained state.
+- Answer No when the required subject/target/result is absent, too ambiguous to identify, only implied by the task description, or clearly contradicted by the video.
+- Prefer moderate support from clear before/after or final-state evidence over demanding a perfect continuous trajectory."""
+
+
+def _build_p25_d3d4_prompt(
+    *, world_state_prompt: str, probe: RuntimeV2Probe, sampling_text: str
+) -> str:
+    return f"""You are judging one visual question about an AI-generated video.
+
+Answer exactly one token: Yes or No.
+Do not output JSON, explanations, markdown, punctuation, or extra words.
+
+Watch the whole sampled video before answering. You are seeing {sampling_text}, not necessarily every source frame.
+
+Task description:
+{world_state_prompt}
+
+Before answering, silently parse the task description into these task slots:
+- primary subject or actor;
+- manipulated or target object;
+- support surface, container, destination, region, or other spatial anchor;
+- required action, pose, contact, movement, or state change;
+- expected contact result, final state, or maintained state.
+
+Then inspect the video directly:
+1. Focus on the parsed task-critical subject, target object, region, action, and result.
+2. Use stable scene anchors such as the floor, walls, furniture, counters, doors, and fixed background structure.
+3. Ignore incidental objects unless they directly affect the parsed task slots.
+4. Judge visible evidence, not the task description alone.
+
+{_p25_dimension_guidance(probe)}
+
+{_p25_answer_rule(probe)}
+
+Question:
+{question_for_probe(probe, PROMPT_MODE_P25_D3D4_SLOT_PARSE)}
+
+Answer exactly one token: Yes or No."""
+
+
+def _p22_native_score_rule(probe: RuntimeV2Probe) -> str:
+    if probe.dimension == "spatial_reasoning":
+        return """How to judge this question:
+- Compare the last clear view before the relevant person, object, or region became hard to judge with the later clear view after it becomes judgeable again.
+- Use stable scene anchors to judge whether the later evidence fits the same world-region continuation.
+- A later similar-looking object is not enough by itself to prove spatial continuity for the original prompt-relevant object.
+- Brief duplicate-looking blur, partial silhouettes, transparent remnants, motion trails, or render echoes should be ignored unless they are clear, separate, persistent across later sampled evidence, and directly relevant to the prompt.
+- Missing middle frames or a hidden interval alone is not failure.
+- For questions asking about counterevidence, answer Yes only when clear visible counterevidence is actually shown."""
+    if probe.dimension == "state_reasoning":
+        return """How to judge this question:
+- Compare the last clear action, pose, result, or state before it became hard to judge with the later clear evidence after it becomes judgeable again.
+- Judge whether the later evidence looks like a plausible continuation of the same prompt-relevant action or result.
+- A later similar-looking person, object, or result is not enough by itself to prove that the original action or result continued.
+- Brief duplicate-looking blur, partial silhouettes, transparent remnants, motion trails, or render echoes should be ignored unless they are clear, separate, persistent across later sampled evidence, and directly relevant to the prompt.
+- Missing middle frames or a hidden interval alone is not failure.
+- For questions asking about counterevidence, answer Yes only when clear visible counterevidence is actually shown."""
+    raise RuntimeError(f"no P22 native score rule for {probe.probe_id}")
+
+
+def _build_p22_d5d6_prompt(
+    *,
+    world_state_prompt: str,
+    probe: RuntimeV2Probe,
+    task_context: dict[str, Any] | None,
+    sampling_text: str,
+    evidence_context: dict[str, Any] | None,
+    evidence_context_mode: str | None,
+) -> str:
+    context_text = format_task_context(task_context)
+    evidence_text = format_evidence_context(
+        evidence_context, evidence_context_mode=evidence_context_mode
+    )
+    extra_context_block = ""
+    if context_text.strip() not in {"", "{}", "- none"} or evidence_text.strip():
+        extra_context_block = f"""
+Additional prompt/task context, when available:
+{context_text}
+{evidence_text}
+"""
+    return f"""You are judging one visual question about an AI-generated video.
+
+Answer exactly one token: Yes or No.
+Do not output JSON, explanations, markdown, punctuation, or extra words.
+
+Watch the whole sampled video before answering. You are seeing {sampling_text}, not necessarily every source frame.
+
+Use the text prompt only to identify the main person, object, target, action, and result that matter for this question. Answer from the video evidence, not from the text prompt alone.
+
+{_p22_native_score_rule(probe)}
+
+Text prompt used to generate the video:
+{world_state_prompt}
+{extra_context_block}
+Question:
+{question_for_probe(probe, PROMPT_MODE_P22_NATIVE_D5D6)}
+
+Answer exactly one token: Yes or No."""
+
+
 def validate_prompt_mode(prompt_mode: str) -> str:
     if prompt_mode not in SUPPORTED_PROMPT_MODES:
         raise ValueError(
@@ -658,6 +817,14 @@ def validate_prompt_mode(prompt_mode: str) -> str:
 
 def question_for_probe(probe: RuntimeV2Probe, prompt_mode: str = DEFAULT_PROMPT_MODE) -> str:
     prompt_mode = validate_prompt_mode(prompt_mode)
+    if prompt_mode == PROMPT_MODE_P25_D3D4_SLOT_PARSE and probe.probe_id in P25_D3D4_QUESTIONS:
+        return P25_D3D4_QUESTIONS[probe.probe_id]
+    if prompt_mode in {PROMPT_MODE_P22_NATIVE_D5D6, PROMPT_MODE_P25_D3D4_SLOT_PARSE}:
+        if probe.dimension == "state_fidelity":
+            return P8_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
+        if probe.dimension == "spatial_reasoning":
+            return P6_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
+        return probe.question
     if prompt_mode == PROMPT_MODE_QWEN36_35B_P9_SCORE:
         prompt_mode = PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED
     elif prompt_mode == PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE:
@@ -799,10 +966,37 @@ def build_runtime_v2_probe_prompt(
         sampling_bits.append(f"approximately {frames_used} video frames")
     sampling_text = ", ".join(sampling_bits) if sampling_bits else "the frames provided by the runner"
     if (
+        prompt_mode == PROMPT_MODE_P25_D3D4_SLOT_PARSE
+        and probe.role == "score"
+        and probe.dimension in {"spatial_fidelity", "state_fidelity"}
+    ):
+        if evidence_context:
+            raise ValueError("P25 clean task-slot parsing does not accept evidence_context")
+        return _build_p25_d3d4_prompt(
+            world_state_prompt=world_state_prompt,
+            probe=probe,
+            sampling_text=sampling_text,
+        )
+    if (
+        prompt_mode in {PROMPT_MODE_P22_NATIVE_D5D6, PROMPT_MODE_P25_D3D4_SLOT_PARSE}
+        and probe.role == "score"
+        and probe.dimension in {"spatial_reasoning", "state_reasoning"}
+    ):
+        return _build_p22_d5d6_prompt(
+            world_state_prompt=world_state_prompt,
+            probe=probe,
+            task_context=task_context,
+            sampling_text=sampling_text,
+            evidence_context=evidence_context,
+            evidence_context_mode=evidence_context_mode,
+        )
+    if (
         prompt_mode
         in {
             PROMPT_MODE_P8_D4_SUBJECT_CAUSAL_RESULT,
             PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+            PROMPT_MODE_P22_NATIVE_D5D6,
+            PROMPT_MODE_P25_D3D4_SLOT_PARSE,
             PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
             PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
             PROMPT_MODE_QWEN36_35B_P9_SCORE,
@@ -844,6 +1038,8 @@ def build_runtime_v2_probe_prompt(
         in {
             PROMPT_MODE_P6_D5_WORLD_REGION_CONTINUITY,
             PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+            PROMPT_MODE_P22_NATIVE_D5D6,
+            PROMPT_MODE_P25_D3D4_SLOT_PARSE,
             PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
             PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
             PROMPT_MODE_QWEN36_35B_P9_SCORE,

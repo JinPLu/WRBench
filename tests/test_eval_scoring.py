@@ -216,6 +216,50 @@ def test_qwen35_legacy_p9_manifest_metadata_context_remains_available() -> None:
     assert scorer.task_context_mode == "all_manifest_metadata"
 
 
+def test_qwen35_current_default_profile_strict_manifest_dry_run(tmp_path: Path) -> None:
+    from wrbench.eval.scoring import prompts_v2_probe
+
+    video = tmp_path / "video.mp4"
+    video.write_bytes(b"not-a-real-video")
+    manifest_path = tmp_path / "manifest.json"
+    out_dir = tmp_path / "qwen35-current"
+    write_json(
+        manifest_path,
+        [
+            {
+                "video_id": "vid-current",
+                "path": str(video),
+                "world_state_prompt": "A person places a cup on a table.",
+            }
+        ],
+    )
+
+    result = qwen35_mod.main(
+        [
+            "--experiment-id",
+            "wrbench_default_dry_run",
+            "--manifest-path",
+            str(manifest_path),
+            "--output-dir",
+            str(out_dir),
+            "--model-path",
+            DUMMY_QWEN35_MODEL,
+            *qwen35_required_args(
+                prompt_mode=prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+                task_context_mode="none",
+            ),
+            "--strict-manifest-contract",
+            "--dry-run",
+        ]
+    )
+
+    assert result == 0
+    config = json.loads((out_dir / "run_config.json").read_text())
+    assert config["prompt_mode"] == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
+    assert config["task_context_mode"] == "none"
+    assert config["strict_manifest_contract"] is True
+
+
 def test_qwen35_v7_export_preserves_task_context_mode() -> None:
     row = qwen35_mod.export_v7_style_probe_record(
         {
@@ -1062,17 +1106,14 @@ def test_runtime_example_matches_wrbench_default_d3d6_profile() -> None:
     assert env["TASK_CONTEXT_MODE"] == "none"
 
 
-def test_overlay_install_accepts_wrbench_repo_root() -> None:
-    from wrbench.eval.runtime import wrbench_repo_root
+def test_current_qwen35_profile_is_declared_without_overlay_install() -> None:
     from wrbench.eval.scoring import prompts_v2_probe
     from wrbench.eval.scoring import run_qwen35_p22_overlay as p22
     from wrbench.eval.scoring import run_qwen35_p25_d3d4_slot_parse_overlay as p25
 
-    repo_root = wrbench_repo_root()
-    p22.install_p22_overlay(repo_root)
-    p25.install_p25_overlay(repo_root)
     assert p22.P22_PROMPT_MODE in prompts_v2_probe.SUPPORTED_PROMPT_MODES
     assert p25.P25_PROMPT_MODE in prompts_v2_probe.SUPPORTED_PROMPT_MODES
+    assert prompts_v2_probe.validate_prompt_mode(p25.P25_PROMPT_MODE) == p25.P25_PROMPT_MODE
 
 
 def test_score_runtime_v2_shell_requires_explicit_profile_configuration() -> None:

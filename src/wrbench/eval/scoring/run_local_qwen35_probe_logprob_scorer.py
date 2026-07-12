@@ -27,6 +27,7 @@ try:
         CAMERA_MOTION_CONTEXT_KEY,
         DEFAULT_PROMPT_MODE,
         PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
+        PROMPT_MODE_P25_D3D4_SLOT_PARSE,
         PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
         PROBE_CATALOG_VERSION,
         RUNTIME_V2_PROBE_CATALOG,
@@ -43,6 +44,7 @@ except ImportError:
         CAMERA_MOTION_CONTEXT_KEY,
         DEFAULT_PROMPT_MODE,
         PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
+        PROMPT_MODE_P25_D3D4_SLOT_PARSE,
         PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
         PROBE_CATALOG_VERSION,
         RUNTIME_V2_PROBE_CATALOG,
@@ -1335,15 +1337,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             + ", ".join(sorted(SUPPORTED_PROMPT_MODES))
         )
     if args.strict_manifest_contract:
-        if args.prompt_mode != PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED:
+        strict_profile_pairs = {
+            (PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED, TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA),
+            (PROMPT_MODE_P25_D3D4_SLOT_PARSE, TASK_CONTEXT_MODE_NONE),
+        }
+        if (args.prompt_mode, args.task_context_mode) not in strict_profile_pairs:
             parser.error(
-                "--strict-manifest-contract requires --prompt-mode "
-                f"{PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED}"
-            )
-        if args.task_context_mode != TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA:
-            parser.error(
-                "--strict-manifest-contract requires --task-context-mode "
-                f"{TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA}"
+                "--strict-manifest-contract requires a supported prompt/context profile: "
+                f"{PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED} + "
+                f"{TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA}, or "
+                f"{PROMPT_MODE_P25_D3D4_SLOT_PARSE} + {TASK_CONTEXT_MODE_NONE}"
             )
         if args.skip_existing:
             parser.error("--strict-manifest-contract does not allow --skip-existing")
