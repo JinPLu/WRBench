@@ -7,6 +7,13 @@ import re
 from pathlib import Path
 from typing import Any
 
+from wrbench.backends.launchers._registry import (
+    LaunchSpec,
+    PreparedLaunch,
+    require_image,
+    require_prompt,
+    successful_generation,
+)
 from wrbench.contracts import require_bool, require_execution_contract, require_int, require_mapping, require_sequence, require_str
 from wrbench.runtime import ModelRuntime
 
@@ -109,6 +116,17 @@ def easyanimate_expected_output(save_dir: Path) -> Path:
     return preferred
 
 
+def validate_easyanimate_runtime(runtime: ModelRuntime) -> list[str]:
+    missing = []
+    if not runtime.python_bin or not Path(str(runtime.python_bin)).is_file():
+        missing.append("python_bin")
+    if not runtime.repo_root or not Path(str(runtime.repo_root)).is_dir():
+        missing.append("repo_root")
+    if not runtime.model_path or not Path(str(runtime.model_path)).exists():
+        missing.append("model_path")
+    return missing
+
+
 def build_easyanimate_command(
     *,
     model: str,
@@ -181,3 +199,29 @@ def build_easyanimate_command(
     else:
         env["PYTHONPATH"] = repo_str
     return cmd, repo, env, easyanimate_expected_output(save_dir)
+
+
+def _prepare(request: GenerationRequest, runtime: ModelRuntime) -> PreparedLaunch:
+    output_path = Path(request.output_path).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd, cwd, env, _ = build_easyanimate_command(
+        model="easyanimate-v51-camera",
+        payload=dict(request.payload.payload),
+        runtime=runtime,
+        image_path=require_image(request, "easyanimate-v51-camera"),
+        prompt=require_prompt(request, "easyanimate-v51-camera"),
+        output_path=output_path,
+    )
+
+    def finalize() -> GenerationResult:
+        produced = easyanimate_expected_output(output_path.parent)
+        if produced.is_file() and produced != output_path:
+            if output_path.is_file():
+                output_path.unlink()
+            produced.replace(output_path)
+        return successful_generation(output_path, cmd)
+
+    return PreparedLaunch(cmd, cwd, env, finalize)
+
+
+SPEC = LaunchSpec("easyanimate-v51-camera", validate_easyanimate_runtime, _prepare)

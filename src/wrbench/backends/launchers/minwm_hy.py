@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any
 
+from wrbench.backends.base import GenerationRequest, GenerationResult
+from wrbench.backends.launchers._registry import LaunchSpec, PreparedLaunch, require_image, require_prompt, successful_generation
 from wrbench.backends.launchers.minwm_common import (
     expected_output,
     prepare_output_dir,
@@ -256,3 +259,28 @@ def build_minwm_hy_command(
 
     env = runtime_env(runtime, pythonpath_entries=[repo / "HY15", repo / "shared", repo])
     return cmd, repo, env, output_dir
+
+
+def _prepare(request: GenerationRequest, runtime: ModelRuntime) -> PreparedLaunch:
+    output_path = Path(request.output_path).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd, cwd, env, output_dir = build_minwm_hy_command(
+        model="minwm-hy-action2v",
+        payload=dict(request.payload.payload),
+        runtime=runtime,
+        image_path=require_image(request, "minwm-hy-action2v"),
+        prompt=require_prompt(request, "minwm-hy-action2v"),
+        output_path=output_path,
+    )
+
+    def finalize() -> GenerationResult:
+        produced = minwm_hy_expected_output(output_dir)
+        if produced is None:
+            return GenerationResult(success=False, message=f"subprocess exited 0 but no minWM HY mp4 found under: {output_dir}")
+        shutil.copy2(produced, output_path)
+        return successful_generation(output_path, cmd)
+
+    return PreparedLaunch(cmd, cwd, env, finalize)
+
+
+SPEC = LaunchSpec("minwm-hy-action2v", validate_minwm_hy_runtime, _prepare)

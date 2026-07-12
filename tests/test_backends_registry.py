@@ -13,9 +13,24 @@ from wrbench.backends.base import GenerationRequest
 from wrbench.backends.launchers.easyanimate import build_easyanimate_command
 from wrbench.backends.launchers.minwm_hy import build_minwm_hy_command
 from wrbench.backends.launchers.minwm_wan import build_minwm_wan_command
+from wrbench.backends.launchers import launcher_spec, supported_models
 from wrbench.backends.registry import list_backends, resolve_backend
 from wrbench.backends.local_subprocess import LocalSubprocessBackend
 from wrbench.runtime import RuntimeConfig, ModelRuntime, load_runtime_config
+
+
+def test_local_launcher_registry_contains_only_supported_models():
+    expected = frozenset(
+        {
+            "easyanimate-v51-camera",
+            "minwm-hy-action2v",
+            "minwm-wan-action2v",
+            "spatia",
+        }
+    )
+    assert supported_models() == expected
+    assert all(launcher_spec(model).key == model for model in expected)
+    assert launcher_spec("worldcam") is None
 
 
 def test_resolve_backend_defaults_to_dry_run_without_runtime():

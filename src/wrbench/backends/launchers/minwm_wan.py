@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+import shutil
+from typing import Any
 
+from wrbench.backends.base import GenerationRequest, GenerationResult
+from wrbench.backends.launchers._registry import LaunchSpec, PreparedLaunch, successful_generation
 from wrbench.backends.launchers.minwm_common import (
     expected_output,
     prepare_output_dir,
@@ -129,3 +133,27 @@ def build_minwm_wan_command(
     if prompt and prompt_path.read_text(encoding="utf-8").strip() != prompt.strip():
         env["WRBENCH_PROMPT_MISMATCH_WARNING"] = "1"
     return cmd, repo, env, output_dir
+
+
+def _prepare(request: GenerationRequest, runtime: ModelRuntime) -> PreparedLaunch:
+    output_path = Path(request.output_path).resolve()
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    cmd, cwd, env, output_dir = build_minwm_wan_command(
+        model="minwm-wan-action2v",
+        payload=dict(request.payload.payload),
+        runtime=runtime,
+        prompt=request.prompt,
+        output_path=output_path,
+    )
+
+    def finalize() -> GenerationResult:
+        produced = minwm_wan_expected_output(output_dir)
+        if produced is None:
+            return GenerationResult(success=False, message=f"subprocess exited 0 but no minWM Wan mp4 found under: {output_dir}")
+        shutil.copy2(produced, output_path)
+        return successful_generation(output_path, cmd)
+
+    return PreparedLaunch(cmd, cwd, env, finalize)
+
+
+SPEC = LaunchSpec("minwm-wan-action2v", validate_minwm_wan_runtime, _prepare)
