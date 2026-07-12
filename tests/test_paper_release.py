@@ -311,41 +311,46 @@ def test_release_index_records_live_cross_repository_publication() -> None:
     index = load_natural25_release_index()
 
     assert index["github"] == {
-        "contract_commit": "6c47fc6dbcdc7b90ea83e8aaf0f038035d933614",
-        "release_tag": "v0.1.1",
+        "contract_commit": "7691d0b51c299f19661d6f90394b05e117cac175",
+        "release_tag": "v0.1.2",
+        "release_tag_target": "publication_envelope_commit",
         "repository": "JinPLu/WRBench",
     }
-    assert index["hugging_face"]["immutable_tag"] == "paper-main-20260608-repro-v1"
-    assert index["hugging_face"]["natural25"]["commit"] == "214ed8cd5cb3494bcfe332c06fa1db8bdff9edd8"
-    assert index["hugging_face"]["videos"]["commit"] == "2de5487a6ac0e5d1f551a8d6e1c83b9e00f73d66"
-    assert index["hugging_face"]["natural25"]["configs"] == {
-        "paper_tv2v_sources": {"columns": 38, "rows": 100},
-        "paper_variants_api_source": {"columns": 9, "rows": 400},
-        "paper_variants_local": {"columns": 9, "rows": 400},
+    assert index["hugging_face"]["natural25"] == {
+        "commit": "65572c4a4b2fe5e71d9195d98ba57a2e4ea78b10",
+        "immutable_tag": "paper-main-20260608-repro-v2",
+        "release_root": "original/releases/paper_main_20260608",
+        "repository": "WRBench/wrbench-natural25",
     }
-    assert index["hugging_face"]["videos"]["configs"] == {
-        "paper_camera_scope": {"columns": 25, "rows": 23},
-        "tv2v_source_videos": {"columns": 46, "rows": 100},
-        "videos_master": {"columns": 45, "rows": 11100},
+    assert index["hugging_face"]["videos"] == {
+        "current_main_commit": "2de5487a6ac0e5d1f551a8d6e1c83b9e00f73d66",
+        "frozen_attestation": {
+            "commit": "b37c39b4b75c8a4420ba6131cb599089192ce443",
+            "immutable_tag": "paper-main-20260608-repro-v1",
+        },
+        "repository": "WRBench/wrbench-videos",
+        "rolling_update": {
+            "commit": None,
+            "status": "pending_not_published",
+            "tag": None,
+        },
     }
-    for surface in ("natural25", "videos"):
-        assert index["hugging_face"][surface]["viewer"] == {
-            "failed_jobs": 0,
-            "first_rows_readable": True,
-            "pending_jobs": 0,
-            "splits_readable": True,
-        }
     expected_hashes = index["artifact_hashes"]
     assert expected_hashes["release_manifest.json"] == _sha256(
         natural25_release_path("release_manifest.json")
     )
     for relative_path in NATURAL25_RELEASE_CORE_FILES:
         assert expected_hashes[relative_path] == _sha256(natural25_release_path(relative_path))
+    assert index["external_artifact_hashes"] == {
+        "../../first_frames_manifest.json": _sha256(
+            natural25_release_dir().parents[1] / "first_frames_manifest.json"
+        )
+    }
     assert index["verification"] == {
         "paper_model_count": 23,
         "paper_video_rows": 9600,
         "scores_changed": False,
         "source_assets_revision": VIDEO_ASSET_REVISION,
-        "verified_at_utc": "2026-07-11T19:58:31Z",
+        "verified_at_utc": "2026-07-12T15:47:24Z",
         "video_bytes_changed": False,
     }
