@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections import Counter
+from pathlib import Path
 
 import pytest
 
@@ -132,6 +133,19 @@ def test_paper_local_static_scope_is_runner_compatible() -> None:
     assert len(tasks) == 100
     assert {task.camera for task in tasks} == {"static"}
     assert {task.stress_yaw_deg for task in tasks} == {None}
+
+
+def test_versioned_scope_loader_does_not_depend_on_release_id(tmp_path: Path) -> None:
+    source = natural25_release_path("camera_scopes/local_static.json")
+    payload = json.loads(source.read_text(encoding="utf-8"))
+    payload["scope_id"] = "example_release.local_static"
+    path = tmp_path / "scope.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    scope = load_natural25_camera_scope(path)
+
+    assert scope.scope_id == "example_release.local_static"
+    assert scope.expected_task_count == 100
 
 
 def test_paper_api_prompt_camera_scope_is_explicitly_inspect_only() -> None:
