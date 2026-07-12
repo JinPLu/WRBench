@@ -89,10 +89,11 @@ D1-CamPrec applies to models with explicit pose or trajectory targets. API and p
 
 The compatibility Hugging Face configs load directly with `datasets`:
 `variants`, `model_scores`, `pairs`, and `videos_master`. The immutable local
-release directory pins the exact paper prompts, camera denominator, TV2V source
-assets, and HyDRA evaluation policy. The 9,600-row paper table stays frozen even
-when the public video dataset expands; the current rolling dataset has 11,100
-rows.
+release directory pins the exact paper prompts, first-frame generation catalog
+and bytes, camera denominator, TV2V source assets, and HyDRA evaluation policy.
+The 9,600-row paper table stays frozen. Corrections to non-paper metadata or
+generation assets, and newly evaluated models, are versioned in the separate
+11,100-row rolling dataset so they cannot silently rewrite the paper table.
 
 ---
 
