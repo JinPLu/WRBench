@@ -11,6 +11,14 @@
 - Removed the byte-identical legacy Natural-25 variants copy; `variants.jsonl`
   remains the only toolkit compatibility surface, while paper prompts stay in
   the versioned release directory.
+- The current P25/P22 scorer profile is self-contained and no longer patches
+  historical prompt modules at runtime.
+- Single-GPU Qwen3.5 and Qwen3-VL loading no longer requires Accelerate through
+  an implicit `device_map`; runtime metadata records explicit CUDA placement.
+- The example Qwen3-VL output limit now matches the scorer default (`768`) so
+  structured evidence is not truncated by the published configuration.
+- Newcomer documentation now follows one install, compile, evaluate, and
+  optional-generate path instead of duplicating release and result details.
 
 ## 0.1.2 — 2026-07-12
 
