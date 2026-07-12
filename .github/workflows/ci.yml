@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,3 +23,14 @@ jobs:
           pip install -e ".[dev]"
           python -m pytest -q
           python -c "import wrbench; from wrbench.eval.runtime import contract_path; print(contract_path())"
+
+  oss-verify:
+    name: OSS release gate (Python 3.12)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run the canonical OSS release gate
+        run: bash scripts/oss_verify.sh

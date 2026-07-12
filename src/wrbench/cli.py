@@ -23,6 +23,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+from wrbench import __version__
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -888,7 +890,7 @@ def _build_parser() -> argparse.ArgumentParser:
         prog="wrbench",
         description="Unified camera control for video-generation models.",
     )
-    parser.add_argument("--version", action="version", version="%(prog)s 0.1.0")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", metavar="<command>")
     sub.required = True
 

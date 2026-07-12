@@ -30,16 +30,16 @@
       "repository": "WRBench/wrbench-natural25"
     },
     "videos": {
-      "current_main_commit": "2de5487a6ac0e5d1f551a8d6e1c83b9e00f73d66",
+      "current_main_commit": "a8e3d38b3c588a6f5368bfb42bfcf7d9a7dddf89",
       "frozen_attestation": {
         "commit": "b37c39b4b75c8a4420ba6131cb599089192ce443",
         "immutable_tag": "paper-main-20260608-repro-v1"
       },
       "repository": "WRBench/wrbench-videos",
       "rolling_update": {
-        "commit": null,
-        "status": "pending_not_published",
-        "tag": null
+        "commit": "a8e3d38b3c588a6f5368bfb42bfcf7d9a7dddf89",
+        "status": "published_and_anonymously_verified",
+        "tag": "rolling-main-20260713-v3"
       }
     }
   },
@@ -49,8 +49,30 @@
     "paper_model_count": 23,
     "paper_video_rows": 9600,
     "scores_changed": false,
+    "scores_changed_scope": "frozen_paper_aggregate_table",
+    "rolling_per_video_score_correction": {
+      "fields": [
+        "D5_returned_spatial",
+        "D6_returned_state"
+      ],
+      "rows": 2073
+    },
+    "rolling_model_score_sync": {
+      "aggregate_results_commit": "30d2245a3d6a7043b7f369cb6666ce3d24aa017e",
+      "aggregate_scores_changed": false,
+      "field_diff_counts": {
+        "D3_visible_spatial": 58,
+        "D4_visible_state": 58,
+        "D5_returned_spatial": 10,
+        "D6_returned_state": 11
+      },
+      "model": "easyanimate-v51-camera",
+      "replaced_snapshot_sha256": "63dc6c374438d8985b987f1e0a69dc34041bf8eef91276f1e3e62eb66e13fae9",
+      "rows": 59,
+      "source_snapshot_sha256": "d4f5632205f91ed913aca25a44549c7772dd9b6b342e85fd83079189afb30bf0"
+    },
     "source_assets_revision": "8a927b9322c5d8af6474399ce4840ef4148f8e39",
-    "verified_at_utc": "2026-07-12T15:47:24Z",
+    "verified_at_utc": "2026-07-12T19:06:54Z",
     "video_bytes_changed": false
   }
 }

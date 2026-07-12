@@ -74,6 +74,7 @@ fi
 python -m pytest -q
 python - <<'PY'
 import json
+from importlib.metadata import version
 
 import wrbench
 from wrbench.datasets import (
@@ -119,7 +120,7 @@ bad_t2v_tails = [
 ]
 assert not bad_t2v_tails, bad_t2v_tails[:5]
 paper_release = validate_natural25_release(NATURAL25_PAPER_RELEASE_ID)
-assert wrbench.__version__ == "0.1.2", wrbench.__version__
+assert wrbench.__version__ == version("wrbench"), wrbench.__version__
 assert paper_release["status"] == "ok", paper_release
 assert paper_release["paper_video_rows"] == 9600, paper_release
 assert all(natural25_release_path(path).is_file() for path in NATURAL25_RELEASE_CORE_FILES)

@@ -112,7 +112,7 @@ Rows without re-observation support are excluded from D5/D6 rather than counted 
 | All releases | [Hugging Face collection](https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26) |
 | Natural-25 | [dataset](https://huggingface.co/datasets/WRBench/wrbench-natural25) · [bundled data](src/wrbench/data/natural25/) |
 | Frozen paper prompts, first frames, camera scopes, and source mappings | [`paper_main_20260608`](src/wrbench/data/natural25/releases/paper_main_20260608/README.md) |
-| Published 23-model results | [dataset](https://huggingface.co/datasets/WRBench/wrbench-results) · [bundled tables](src/wrbench/data/results/) |
+| Results | [rolling dataset](https://huggingface.co/datasets/WRBench/wrbench-results) · [bundled frozen 23-model tables](src/wrbench/data/results/) |
 | Videos and per-video scores | [dataset](https://huggingface.co/datasets/WRBench/wrbench-videos) |
 | Human annotations | [dataset](https://huggingface.co/datasets/WRBench/wrbench-human-annotations) |
 | Leaderboard | [Space](https://huggingface.co/spaces/WRBench/wrbench-leaderboard) |
@@ -133,7 +133,7 @@ The 9,600-row paper table and its provenance are frozen. Corrections or newly ve
 ```bibtex
 @article{wrbench2026,
   title   = {Current World Models Lack a Persistent State Core},
-  author  = {Jinpeng Lu and Dexu Zhu and Haoyuan Shi and Yinda Chen and Linghan Cai and Guo Tang and Jie Cao and Yong Dai},
+  author  = {Jinpeng Lu and Dexu Zhu and Haoyuan Shi and Linghan Cai and Guo Tang and Yinda Chen and Jie Cao and Duyu Tang and Yi Zhang and Yong Dai and Xiaozhu Ju},
   journal = {arXiv preprint arXiv:2606.20545},
   year    = {2026},
   url     = {https://arxiv.org/abs/2606.20545},

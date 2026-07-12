@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3 — 2026-07-13
 
 ### Changed
 
@@ -19,6 +19,18 @@
   structured evidence is not truncated by the published configuration.
 - Newcomer documentation now follows one install, compile, evaluate, and
   optional-generate path instead of duplicating release and result details.
+- Restored the unmodified official Apache License 2.0 text and advanced the
+  package to 0.1.3 with CLI and build metadata sharing one version owner.
+- CI now runs the canonical OSS release gate on Python 3.12 while retaining
+  focused compatibility tests on Python 3.10 and 3.11.
+- The rolling videos index now carries the verified per-video D5/D6 values
+  that reproduce the frozen aggregates; video bytes and paper totals are
+  unchanged, and the release index records the immutable Hub tag.
+- EasyAnimate's 500 rolling rows now use the same current D3-D6 scoring
+  snapshot as the aggregate results; 59 index rows changed, while videos,
+  prompts, applicability masks, and the frozen paper table remain unchanged.
+- The human-annotation release now bundles the 106 exact reviewed videos needed
+  to resolve all 1,170 endpoints in the current recheck.
 
 ## 0.1.2 — 2026-07-12
 

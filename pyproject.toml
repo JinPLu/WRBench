@@ -1,14 +1,15 @@
 [build-system]
-requires = ["setuptools>=64"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "wrbench"
-version = "0.1.2"
+dynamic = ["version"]
 description = "Out-of-the-box unified camera control for video-generation world models: frame-level actions, arbitrary translation/rotation, and preset combinations compiled to model-native payloads."
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "Apache-2.0" }
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 authors = [{ name = "WRBench" }]
 keywords = ["video-generation", "camera-control", "world-model", "benchmark", "wrbench"]
 dependencies = ["numpy>=1.23"]
@@ -33,6 +34,9 @@ wrbench = "wrbench.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.dynamic]
+version = { attr = "wrbench.__version__" }
 
 [tool.setuptools.package-data]
 wrbench = [
