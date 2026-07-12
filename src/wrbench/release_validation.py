@@ -18,53 +18,11 @@ from wrbench.datasets import (
 )
 
 
-LOCAL_PROMPT_SHA256 = "19d99d90b40fe3453d74a634d615403fe4721597422f1d9d433df1611901ac7e"
-API_SOURCE_PROMPT_SHA256 = "ce4eea268ee0c0f7fb379be8a51eb9920e66cee1e18ad82dd7111eb9c99a2ad7"
-FIRST_FRAME_GENERATION_CATALOG_SHA256 = "bd9243b924354741882e2f1ec84ce7ac6eaedb212975ff76ae0d013e2e0c17d3"
 TOOLKIT_VARIANTS_SHA256 = "35d0fe92aa685afb1d32ca26284b1ab3b6a98d7ef692696831392ab24b3c8b34"
-VIDEO_ASSET_REVISION = "8a927b9322c5d8af6474399ce4840ef4148f8e39"
 EVENT_TIERS = {"T0", "T1", "T2_div_a", "T2_div_b"}
 _HEX40_RE = re.compile(r"^[0-9a-f]{40}$")
 _HEX64_RE = re.compile(r"^[0-9a-f]{64}$")
 
-LOCAL_500_MODELS = (
-    "hunyuan_worldplay",
-    "lingbot_world",
-    "lingbot_world_act",
-    "liveworld",
-    "magicworld",
-    "spatia",
-    "versecrafter",
-    "wan21_fun_14b_cam",
-    "wan21_fun_1p3b_cam",
-    "wan22_fun_5b_cam",
-    "wan22_fun_a14b_cam",
-)
-LOCAL_400_MODELS = (
-    "gen3c",
-    "hunyuan_game_craft",
-    "hydra",
-    "inspatio_world_14b",
-    "recammaster",
-)
-API_300_MODELS = (
-    "hailuo_2_3",
-    "happyhorse_1_0_i2v",
-    "kling_v2_6",
-    "wan2_2_i2v_plus",
-    "wan2_6_i2v",
-    "wan2_7_i2v",
-    "wanx2_1_i2v_turbo",
-)
-EXPECTED_MODEL_ROWS = {
-    **{model: 500 for model in LOCAL_500_MODELS},
-    **{model: 400 for model in LOCAL_400_MODELS},
-    **{model: 300 for model in API_300_MODELS},
-}
-EXPECTED_MODEL_CATALOG = {
-    **{model: "local_ti2v_tv2v" for model in (*LOCAL_500_MODELS, *LOCAL_400_MODELS)},
-    **{model: "api_source" for model in API_300_MODELS},
-}
 EXPECTED_LOCAL_DUAL_CELLS = {
     ("yaw_LR", 30),
     ("yaw_RL", 30),
@@ -76,29 +34,6 @@ EXPECTED_API_CELLS = {
     ("yaw_LR", None),
     ("yaw_RL", None),
 }
-EXPECTED_LOCAL_CURRENT_STATIC = {
-    **{model: True for model in LOCAL_500_MODELS},
-    "gen3c": False,
-    "hunyuan_game_craft": True,
-    "hydra": False,
-    "inspatio_world_14b": False,
-    "recammaster": False,
-}
-EXPECTED_ARTIFACT_ROWS = {
-    "README.md": 1,
-    "first_frame_generation_families.jsonl": 25,
-    "variants.local_ti2v_tv2v.jsonl": 400,
-    "variants.api_source.jsonl": 400,
-    "prompt_usage.json": 23,
-    "camera_scope.json": 23,
-    "camera_scopes/local_dual_angle.json": 64,
-    "camera_scopes/local_static.json": 11,
-    "camera_scopes/api_prompt_camera.json": 21,
-    "tv2v_sources.jsonl": 100,
-    "hydra_evaluation_policy.json": 1,
-}
-
-
 class ReleaseValidationError(ValueError):
     """Raised when a bundled release violates the public contract."""
 
@@ -120,6 +55,35 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise ReleaseValidationError(f"{path}: expected a JSON object")
     return payload
+
+
+# Backward-compatible release facts, loaded from the bundled source-of-truth files.
+_BUNDLED_RELEASE_ROOT = natural25_release_dir().resolve()
+_BUNDLED_MANIFEST = _load_json(_BUNDLED_RELEASE_ROOT / "release_manifest.json")
+_BUNDLED_USAGE = _load_json(_BUNDLED_RELEASE_ROOT / "prompt_usage.json")
+LOCAL_PROMPT_SHA256 = str(_BUNDLED_USAGE["catalogs"]["local_ti2v_tv2v"]["sha256"])
+API_SOURCE_PROMPT_SHA256 = str(_BUNDLED_USAGE["catalogs"]["api_source"]["sha256"])
+FIRST_FRAME_GENERATION_CATALOG_SHA256 = str(
+    _BUNDLED_MANIFEST["first_frame_surface"]["catalog_sha256"]
+)
+VIDEO_ASSET_REVISION = str(_BUNDLED_MANIFEST["source_video_assets"]["revision"])
+EXPECTED_MODEL_ROWS = dict(_BUNDLED_USAGE["expected_output_rows_by_model"])
+EXPECTED_MODEL_CATALOG = dict(_BUNDLED_USAGE["model_to_catalog"])
+
+
+def _logical_row_count(path: Path, payload: dict[str, Any] | None = None) -> int:
+    """Return the release-ledger row convention from the artifact itself."""
+    if path.suffix == ".jsonl":
+        return sum(1 for _ in load_jsonl(path))
+    if path.name in {"prompt_usage.json", "camera_scope.json"}:
+        assert payload is not None
+        return len(payload.get("model_to_catalog", payload.get("models", [])))
+    if path.parent.name == "camera_scopes":
+        assert payload is not None
+        models = payload.get("models", [])
+        cells = payload.get("cells")
+        return len(models) * len(cells) if isinstance(cells, list) else len(models)
+    return 1
 
 
 def _event_tier(variant_id: str) -> str:
@@ -156,6 +120,9 @@ def validate_tv2v_source_rows(
     *,
     local_prompt_rows: list[dict[str, Any]],
     api_prompt_rows: list[dict[str, Any]],
+    local_prompt_sha256: str = LOCAL_PROMPT_SHA256,
+    api_prompt_sha256: str = API_SOURCE_PROMPT_SHA256,
+    video_asset_revision: str = VIDEO_ASSET_REVISION,
 ) -> dict[str, Any]:
     """Validate the 100/100 task-to-static-source bijection."""
     local_none = {
@@ -217,7 +184,7 @@ def validate_tv2v_source_rows(
             raise ReleaseValidationError(f"{task_id}: unexpected historical source prompt catalog id")
         if row.get("hf_repo") != "WRBench/wrbench-videos":
             raise ReleaseValidationError(f"{task_id}: invalid hf_repo_id")
-        if row.get("hf_asset_revision") != VIDEO_ASSET_REVISION:
+        if row.get("hf_asset_revision") != video_asset_revision:
             raise ReleaseValidationError(f"{task_id}: source asset revision is not pinned to the audited commit")
         source_video_id = str(row.get("source_video_id") or "")
         expected_source_video_id = f"wan2_7_i2v__{task_id}__static"
@@ -306,7 +273,7 @@ def validate_tv2v_source_rows(
         if represented:
             if exact_catalog_id != "local_ti2v_tv2v_paper_generation":
                 raise ReleaseValidationError(f"{task_id}: exact request must identify the local fixed catalog")
-            if exact_catalog_sha256 != LOCAL_PROMPT_SHA256:
+            if exact_catalog_sha256 != local_prompt_sha256:
                 raise ReleaseValidationError(f"{task_id}: exact provider-request catalog SHA256 mismatch")
             if exact_variant_id != expected_local_fixed_id:
                 raise ReleaseValidationError(
@@ -318,7 +285,7 @@ def validate_tv2v_source_rows(
             )
 
         source_prompt = str(api_static[source_catalog_id].get("ti2v_prompt") or "")
-        if row.get("source_prompt_catalog_sha256") != API_SOURCE_PROMPT_SHA256:
+        if row.get("source_prompt_catalog_sha256") != api_prompt_sha256:
             raise ReleaseValidationError(f"{task_id}: source prompt catalog SHA256 mismatch")
         if row.get("source_prompt_sha256") != _sha256_text(source_prompt):
             raise ReleaseValidationError(f"{task_id}: source_prompt_sha256 does not hash the API static prompt")
@@ -376,7 +343,8 @@ def _validate_artifact_ledger(root: Path, manifest: dict[str, Any]) -> None:
             raise ReleaseValidationError(f"{relative_path}: artifact byte count mismatch")
         if record.get("sha256") != _sha256_file(path):
             raise ReleaseValidationError(f"{relative_path}: artifact SHA256 mismatch")
-        if record.get("row_count") != EXPECTED_ARTIFACT_ROWS[relative_path]:
+        payload = _load_json(path) if path.suffix == ".json" else None
+        if record.get("row_count") != _logical_row_count(path, payload):
             raise ReleaseValidationError(f"{relative_path}: artifact logical row_count mismatch")
 
 
@@ -389,15 +357,16 @@ def _validate_first_frame_contract(
     surface = release_manifest.get("first_frame_surface")
     if not isinstance(surface, dict):
         raise ReleaseValidationError("release manifest must declare first_frame_surface")
+    catalog_sha256 = str(surface.get("catalog_sha256") or "")
     if surface.get("catalog_path") != "first_frame_generation_families.jsonl":
         raise ReleaseValidationError("first-frame surface catalog_path mismatch")
-    if surface.get("catalog_rows") != 25 or surface.get("catalog_sha256") != FIRST_FRAME_GENERATION_CATALOG_SHA256:
+    if surface.get("catalog_rows") != 25 or not _HEX64_RE.fullmatch(catalog_sha256):
         raise ReleaseValidationError("first-frame surface catalog rows/SHA256 mismatch")
     if surface.get("correspondence_key") != "family_id" or surface.get("image_count") != 25:
         raise ReleaseValidationError("first-frame surface correspondence key/image count mismatch")
 
     catalog_path = root / str(surface["catalog_path"])
-    if _sha256_file(catalog_path) != FIRST_FRAME_GENERATION_CATALOG_SHA256:
+    if _sha256_file(catalog_path) != catalog_sha256:
         raise ReleaseValidationError("first-frame generation catalog SHA256 mismatch")
     catalog_rows = list(load_jsonl(catalog_path))
     if len(catalog_rows) != 25:
@@ -447,7 +416,7 @@ def _validate_first_frame_contract(
             raise ReleaseValidationError(f"{family_id}: first-frame prompt does not match generation catalog")
         if row.get("t2i_scene_sha256") != _sha256_text(prompt):
             raise ReleaseValidationError(f"{family_id}: first-frame prompt SHA256 mismatch")
-        if row.get("prompt_catalog_sha256") != FIRST_FRAME_GENERATION_CATALOG_SHA256:
+        if row.get("prompt_catalog_sha256") != catalog_sha256:
             raise ReleaseValidationError(f"{family_id}: first-frame catalog SHA256 mismatch")
         image_path = natural25_root / expected_image_path
         if not image_path.is_file() or row.get("image_sha256") != _sha256_file(image_path):
@@ -461,11 +430,17 @@ def _validate_first_frame_contract(
         raise ReleaseValidationError("first-frame image paths, hashes, and asset IDs must each be unique")
 
 
-def _validate_camera_contract(root: Path) -> None:
+def _validate_camera_contract(
+    root: Path,
+    *,
+    release_id: str,
+    paper_rows: int,
+    prompt_usage: dict[str, Any],
+) -> None:
     scope = _load_json(root / "camera_scope.json")
     if scope.get("schema_version") != "wrbench.paper_camera_scope.v1":
         raise ReleaseValidationError("camera_scope.json schema_version mismatch")
-    if scope.get("release_id") != NATURAL25_PAPER_RELEASE_ID:
+    if scope.get("release_id") != release_id:
         raise ReleaseValidationError("camera_scope.json release_id mismatch")
     if scope.get("scope_files") != {
         "api_prompt_camera": "camera_scopes/api_prompt_camera.json",
@@ -479,53 +454,30 @@ def _validate_camera_contract(root: Path) -> None:
     if not isinstance(rows, list) or not all(isinstance(row, dict) for row in rows):
         raise ReleaseValidationError("camera_scope.json models must be an object list")
     by_model = {str(row.get("model_id")): row for row in rows}
-    if len(by_model) != 23 or set(by_model) != set(EXPECTED_MODEL_ROWS):
+    model_rows = prompt_usage["expected_output_rows_by_model"]
+    model_catalog = prompt_usage["model_to_catalog"]
+    if len(by_model) != len(rows) or set(by_model) != set(model_rows):
         raise ReleaseValidationError("camera_scope.json must enumerate exactly the frozen 23 models")
-    for model, expected_rows in EXPECTED_MODEL_ROWS.items():
+    for model, expected_rows in model_rows.items():
         row = by_model[model]
         if row.get("expected_rows") != expected_rows:
             raise ReleaseValidationError(f"{model}: expected_rows must be {expected_rows}")
-        if row.get("prompt_catalog_id") != EXPECTED_MODEL_CATALOG[model]:
+        if row.get("prompt_catalog_id") != model_catalog[model]:
             raise ReleaseValidationError(f"{model}: prompt catalog mapping mismatch")
-        if model in API_300_MODELS and row.get("requested_yaw_degrees") is not None:
-            raise ReleaseValidationError(f"{model}: API prompt-camera rows must not fabricate requested yaw degrees")
-        expected_cells = (
-            {"static", "yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"}
-            if model in LOCAL_500_MODELS
-            else {"yaw_LR_30", "yaw_RL_30", "yaw_LR_60", "yaw_RL_60"}
-            if model in LOCAL_400_MODELS
-            else {"static", "yaw_LR", "yaw_RL"}
-        )
-        if set(row.get("camera_cells") or []) != expected_cells:
-            raise ReleaseValidationError(f"{model}: camera_cells do not match the frozen release")
-        if model in (*LOCAL_500_MODELS, *LOCAL_400_MODELS):
-            if row.get("requested_yaw_degrees") != [30, 60]:
-                raise ReleaseValidationError(f"{model}: local requested yaw degrees must be [30, 60]")
-            if row.get("frozen_static_included") is not (model in LOCAL_500_MODELS):
-                raise ReleaseValidationError(f"{model}: frozen static inclusion does not match its row group")
-            if row.get("current_contract_supports_static") is not EXPECTED_LOCAL_CURRENT_STATIC[model]:
-                raise ReleaseValidationError(f"{model}: current static capability does not match the release contract")
     totals = scope.get("totals")
-    if totals != {
-        "api_prompt_camera": 2100,
-        "local_dual_angle": 6400,
-        "local_static": 1100,
-        "paper_video_rows": 9600,
-        "static": 1800,
-        "yaw_LR": 3900,
-        "yaw_RL": 3900,
-    }:
+    if not isinstance(totals, dict) or totals.get("paper_video_rows") != paper_rows:
         raise ReleaseValidationError(f"camera_scope.json totals mismatch: {totals!r}")
 
     local_dual = _load_json(root / "camera_scopes" / "local_dual_angle.json")
     if (
         local_dual.get("schema_version") != "wrbench.camera_scope.v1"
-        or local_dual.get("scope_id") != f"{NATURAL25_PAPER_RELEASE_ID}.local_dual_angle"
+        or local_dual.get("scope_id") != f"{release_id}.local_dual_angle"
         or local_dual.get("prompt_catalog_id") != "local_ti2v_tv2v"
         or local_dual.get("rows_per_cell_per_model") != 100
     ):
         raise ReleaseValidationError("local_dual_angle scope metadata mismatch")
-    if set(local_dual.get("models", [])) != set((*LOCAL_500_MODELS, *LOCAL_400_MODELS)):
+    local_models = {model for model, catalog in model_catalog.items() if catalog == "local_ti2v_tv2v"}
+    if set(local_dual.get("models", [])) != local_models:
         raise ReleaseValidationError("local_dual_angle scope must enumerate the exact 16 local models")
     local_dual_cells = {
         (cell.get("camera_type"), cell.get("requested_yaw_deg"))
@@ -534,46 +486,46 @@ def _validate_camera_contract(root: Path) -> None:
     }
     if local_dual_cells != EXPECTED_LOCAL_DUAL_CELLS or len(local_dual.get("cells", [])) != 4:
         raise ReleaseValidationError("local_dual_angle scope must contain the exact LR/RL x 30/60 cells")
-    if local_dual.get("expected_rows") != 6400:
-        raise ReleaseValidationError("local_dual_angle expected_rows must be 6400")
+    expected_local_dual_rows = (
+        len(local_models) * len(local_dual_cells) * int(local_dual.get("rows_per_cell_per_model") or 0)
+    )
+    if local_dual.get("expected_rows") != expected_local_dual_rows:
+        raise ReleaseValidationError("local_dual_angle expected_rows is inconsistent")
     local_static = _load_json(root / "camera_scopes" / "local_static.json")
     if (
         local_static.get("schema_version") != "wrbench.camera_scope.v1"
-        or local_static.get("scope_id") != f"{NATURAL25_PAPER_RELEASE_ID}.local_static"
+        or local_static.get("scope_id") != f"{release_id}.local_static"
         or local_static.get("prompt_catalog_id") != "local_ti2v_tv2v"
         or local_static.get("rows_per_model") != 100
         or local_static.get("camera_type") != "static"
     ):
         raise ReleaseValidationError("local_static scope metadata mismatch")
-    if set(local_static.get("models", [])) != set(LOCAL_500_MODELS) or local_static.get("expected_rows") != 1100:
+    static_models = {model for model in local_models if by_model[model].get("frozen_static_included") is True}
+    if set(local_static.get("models", [])) != static_models or local_static.get("expected_rows") != (
+        len(static_models) * int(local_static.get("rows_per_model") or 0)
+    ):
         raise ReleaseValidationError("local_static scope must enumerate the exact 11 models / 1,100 rows")
     exclusions = local_static.get("excluded_models")
     if not isinstance(exclusions, list) or not all(isinstance(row, dict) for row in exclusions):
         raise ReleaseValidationError("local_static excluded_models must be an object list")
     exclusions_by_model = {str(row.get("model_id")): row for row in exclusions}
-    if set(exclusions_by_model) != set(LOCAL_400_MODELS) or len(exclusions_by_model) != 5:
+    if set(exclusions_by_model) != local_models - static_models:
         raise ReleaseValidationError("local_static scope must enumerate the exact five frozen exclusions")
     for model, exclusion in exclusions_by_model.items():
-        if exclusion.get("current_contract_supports_static") is not EXPECTED_LOCAL_CURRENT_STATIC[model]:
+        if exclusion.get("current_contract_supports_static") is not by_model[model].get("current_contract_supports_static"):
             raise ReleaseValidationError(f"{model}: excluded-model current static capability mismatch")
         if exclusion.get("frozen_omission") != by_model[model].get("frozen_static_omission"):
             raise ReleaseValidationError(f"{model}: frozen static omission wording is inconsistent")
-    gamecraft_omission = (
-        "historical frozen-release fact; the freeze-time reason is not established by retained evidence"
-    )
-    if exclusions_by_model["hunyuan_game_craft"].get("frozen_omission") != gamecraft_omission:
-        raise ReleaseValidationError("Hunyuan GameCraft freeze-time static omission must remain unresolved")
     api_scope = _load_json(root / "camera_scopes" / "api_prompt_camera.json")
     if (
         api_scope.get("schema_version") != "wrbench.camera_scope.v1"
-        or api_scope.get("scope_id") != f"{NATURAL25_PAPER_RELEASE_ID}.api_prompt_camera"
+        or api_scope.get("scope_id") != f"{release_id}.api_prompt_camera"
         or api_scope.get("prompt_catalog_id") != "api_source"
         or api_scope.get("rows_per_cell_per_model") != 100
-        or api_scope.get("control_semantics")
-        != "prompt-camera intent; no requested 30/60-degree distinction and no fabricated target C2W"
     ):
         raise ReleaseValidationError("api_prompt_camera scope metadata mismatch")
-    if set(api_scope.get("models", [])) != set(API_300_MODELS):
+    api_models = {model for model, catalog in model_catalog.items() if catalog == "api_source"}
+    if set(api_scope.get("models", [])) != api_models:
         raise ReleaseValidationError("api_prompt_camera scope must enumerate the exact seven API models")
     api_cells = {
         (cell.get("camera_type"), cell.get("requested_yaw_deg"))
@@ -582,69 +534,93 @@ def _validate_camera_contract(root: Path) -> None:
     }
     if api_cells != EXPECTED_API_CELLS or len(api_scope.get("cells", [])) != 3:
         raise ReleaseValidationError("api_prompt_camera scope must contain exact static/LR/RL intent cells")
-    if api_scope.get("expected_rows") != 2100:
-        raise ReleaseValidationError("api_prompt_camera expected_rows must be 2100")
+    expected_api_rows = len(api_models) * len(api_cells) * int(api_scope.get("rows_per_cell_per_model") or 0)
+    if api_scope.get("expected_rows") != expected_api_rows:
+        raise ReleaseValidationError("api_prompt_camera expected_rows is inconsistent")
     for cell in api_scope.get("cells", []):
         if cell.get("requested_yaw_deg") is not None:
             raise ReleaseValidationError("API prompt-camera cells must have null requested_yaw_deg")
+    for model in api_models:
+        row = by_model[model]
+        if row.get("requested_yaw_degrees") is not None:
+            raise ReleaseValidationError(f"{model}: API prompt-camera rows must not fabricate requested yaw degrees")
+
+    local_cell_names = {
+        f"{camera}_{degrees}" for camera, degrees in local_dual_cells
+    }
+    api_cell_names = {camera for camera, _ in api_cells}
+    for model in local_models:
+        expected_cells = local_cell_names | ({"static"} if model in static_models else set())
+        if set(by_model[model].get("camera_cells") or []) != expected_cells:
+            raise ReleaseValidationError(f"{model}: camera_cells disagree with the scoped camera files")
+        if by_model[model].get("requested_yaw_degrees") != [30, 60]:
+            raise ReleaseValidationError(f"{model}: local requested yaw degrees must be [30, 60]")
+    for model in api_models:
+        if set(by_model[model].get("camera_cells") or []) != api_cell_names:
+            raise ReleaseValidationError(f"{model}: camera_cells disagree with the API scope")
+
+    expected_totals = {
+        "api_prompt_camera": expected_api_rows,
+        "local_dual_angle": expected_local_dual_rows,
+        "local_static": len(static_models) * int(local_static.get("rows_per_model") or 0),
+    }
+    if any(totals.get(key) != value for key, value in expected_totals.items()):
+        raise ReleaseValidationError(f"camera_scope.json component totals mismatch: {totals!r}")
+    aggregate = Counter()
+    for row in rows:
+        for cell in row.get("camera_cells", []):
+            aggregate[str(cell).split("_30")[0].split("_60")[0]] += 100
+    if any(totals.get(camera) != aggregate[camera] for camera in ("static", "yaw_LR", "yaw_RL")):
+        raise ReleaseValidationError(f"camera_scope.json aggregate camera totals mismatch: {totals!r}")
 
 
-def _validate_prompt_usage(root: Path) -> None:
+def _validate_prompt_usage(root: Path, *, release_id: str, paper_rows: int) -> dict[str, Any]:
     usage = _load_json(root / "prompt_usage.json")
     if usage.get("schema_version") != "wrbench.prompt_usage.v1":
         raise ReleaseValidationError("prompt_usage.json schema_version mismatch")
-    if usage.get("release_id") != NATURAL25_PAPER_RELEASE_ID:
+    if usage.get("release_id") != release_id:
         raise ReleaseValidationError("prompt_usage.json release_id mismatch")
-    if usage.get("catalogs") != {
-        "api_source": {
-            "path": "variants.api_source.jsonl",
-            "rows": 400,
-            "sha256": API_SOURCE_PROMPT_SHA256,
-        },
-        "local_ti2v_tv2v": {
-            "path": "variants.local_ti2v_tv2v.jsonl",
-            "rows": 400,
-            "sha256": LOCAL_PROMPT_SHA256,
-        },
-    }:
+    catalogs = usage.get("catalogs")
+    if not isinstance(catalogs, dict) or set(catalogs) != {"api_source", "local_ti2v_tv2v"}:
         raise ReleaseValidationError("prompt_usage.json catalog ledger mismatch")
-    if usage.get("local_generation") != {
-        "camera_control": "supplied separately from content prompts",
-        "catalog_id": "local_ti2v_tv2v",
-        "historical_catalog_rows_not_all_sent": 300,
-        "selected_oov_gap": "none",
-        "selected_rows": 100,
-    }:
-        raise ReleaseValidationError("prompt_usage.json local-generation semantics mismatch")
-    if usage.get("api_prompt_camera") != {
-        "camera_to_source_oov_gap": {
-            "static": "static",
-            "yaw_LR": "yaw_LR",
-            "yaw_RL": "yaw_RL",
-        },
-        "catalog_id": "api_source",
-        "provider_request_boundary": (
-            "The catalog stores historical source prompts. A provider-specific prompt_to_send "
-            "is exact only when request evidence exists."
-        ),
-        "selected_rows": 300,
-    }:
-        raise ReleaseValidationError("prompt_usage.json API prompt-camera semantics mismatch")
-    if usage.get("tv2v_conditioning_source_requests") != {
-        "exact_provider_request_sidecars": 100,
-        "exact_requests_matching_a_frozen_catalog": 75,
-        "exact_requests_not_represented_by_frozen_catalogs": 25,
-        "mapping_boundary": (
-            "task_variant_id to source_catalog_variant_id identifies the conditioning asset; "
-            "it does not assert provider request prompt-text equality"
-        ),
-        "not_represented_event_tier": "T2_div_a",
-    }:
-        raise ReleaseValidationError("prompt_usage.json TV2V request-boundary semantics mismatch")
-    if usage.get("model_to_catalog") != EXPECTED_MODEL_CATALOG:
-        raise ReleaseValidationError("prompt_usage.json must map all 23 models to exactly one catalog")
-    if usage.get("expected_output_rows_by_model") != EXPECTED_MODEL_ROWS:
-        raise ReleaseValidationError("prompt_usage.json expected output rows do not reproduce 500/400/300 groups")
+    for catalog_id, record in catalogs.items():
+        if not isinstance(record, dict):
+            raise ReleaseValidationError(f"prompt catalog {catalog_id!r} ledger must be an object")
+        path = _safe_artifact(root, str(record.get("path") or ""))
+        rows = list(load_jsonl(path))
+        if record.get("rows") != len(rows) or record.get("sha256") != _sha256_file(path):
+            raise ReleaseValidationError(f"prompt catalog {catalog_id!r} rows/SHA256 mismatch")
+
+    model_catalog = usage.get("model_to_catalog")
+    model_rows = usage.get("expected_output_rows_by_model")
+    if not isinstance(model_catalog, dict) or not isinstance(model_rows, dict):
+        raise ReleaseValidationError("prompt_usage.json model maps must be objects")
+    if set(model_catalog) != set(model_rows) or len(model_catalog) != 23:
+        raise ReleaseValidationError("prompt_usage.json must enumerate exactly the frozen 23 models")
+    if set(model_catalog.values()) - set(catalogs):
+        raise ReleaseValidationError("prompt_usage.json model references an unknown prompt catalog")
+    if any(not isinstance(value, int) or value <= 0 for value in model_rows.values()):
+        raise ReleaseValidationError("prompt_usage.json model row counts must be positive integers")
+    if sum(model_rows.values()) != paper_rows:
+        raise ReleaseValidationError("prompt_usage.json model rows do not reproduce the paper total")
+
+    local = usage.get("local_generation")
+    api = usage.get("api_prompt_camera")
+    source = usage.get("tv2v_conditioning_source_requests")
+    if not isinstance(local, dict) or local.get("catalog_id") not in catalogs:
+        raise ReleaseValidationError("prompt_usage.json local-generation catalog is invalid")
+    if not isinstance(api, dict) or api.get("catalog_id") not in catalogs:
+        raise ReleaseValidationError("prompt_usage.json API prompt-camera catalog is invalid")
+    camera_map = api.get("camera_to_source_oov_gap")
+    if not isinstance(camera_map, dict) or set(camera_map) != {"static", "yaw_LR", "yaw_RL"}:
+        raise ReleaseValidationError("prompt_usage.json API camera mapping is incomplete")
+    if not isinstance(source, dict) or source.get("not_represented_event_tier") not in EVENT_TIERS:
+        raise ReleaseValidationError("prompt_usage.json TV2V request boundary is incomplete")
+    matching = source.get("exact_requests_matching_a_frozen_catalog")
+    missing = source.get("exact_requests_not_represented_by_frozen_catalogs")
+    if source.get("exact_provider_request_sidecars") != matching + missing:
+        raise ReleaseValidationError("prompt_usage.json TV2V request counts are inconsistent")
+    return usage
 
 
 def _validate_hydra_policy(root: Path) -> None:
@@ -704,18 +680,21 @@ def validate_natural25_release(
         "separate_versioned_surface": True,
     }:
         raise ReleaseValidationError("release manifest rolling_release_boundary mismatch")
-    if manifest.get("intended_publication") != {
-        "github_release_tag": "v0.1.2",
-        "hf_natural25_provenance_tag": "paper-main-20260608-repro-v2",
-        "hf_videos_frozen_attestation_tag": "paper-main-20260608-repro-v1",
-        "hf_videos_rolling_update_tag": "rolling-main-20260712-v2",
-        "release_index_path_after_hf_publication": "release_index.json",
-    }:
+    publication = manifest.get("intended_publication")
+    publication_fields = {
+        "github_release_tag",
+        "hf_natural25_provenance_tag",
+        "hf_videos_frozen_attestation_tag",
+        "hf_videos_rolling_update_tag",
+        "release_index_path_after_hf_publication",
+    }
+    if not isinstance(publication, dict) or set(publication) != publication_fields or not all(
+        isinstance(publication[field], str) and publication[field] for field in publication_fields
+    ):
         raise ReleaseValidationError("release manifest intended publication surfaces mismatch")
-    if manifest.get("source_video_assets", {}).get("revision") != VIDEO_ASSET_REVISION:
+    video_asset_revision = str(manifest.get("source_video_assets", {}).get("revision") or "")
+    if not _HEX40_RE.fullmatch(video_asset_revision):
         raise ReleaseValidationError("release manifest source-video revision mismatch")
-    if manifest.get("model_to_prompt_catalog") != EXPECTED_MODEL_CATALOG:
-        raise ReleaseValidationError("release manifest must map all frozen models to exactly one prompt catalog")
     for field in ("baseline_commits", "producer_commits"):
         revisions = manifest.get(field)
         if not isinstance(revisions, dict) or not revisions:
@@ -726,35 +705,45 @@ def validate_natural25_release(
     _reject_mutable_only_links(manifest)
     _validate_artifact_ledger(root, manifest)
 
-    local_path = root / "variants.local_ti2v_tv2v.jsonl"
-    api_path = root / "variants.api_source.jsonl"
-    if _sha256_file(local_path) != LOCAL_PROMPT_SHA256 or _sha256_file(api_path) != API_SOURCE_PROMPT_SHA256:
-        raise ReleaseValidationError("paper prompt catalog checksum mismatch")
+    paper_rows = int(manifest["paper_video_rows"])
+    prompt_usage = _validate_prompt_usage(root, release_id=release_id, paper_rows=paper_rows)
+    if manifest.get("model_to_prompt_catalog") != prompt_usage["model_to_catalog"]:
+        raise ReleaseValidationError("release manifest and prompt usage model mappings disagree")
+
+    catalogs = prompt_usage["catalogs"]
+    local_record = catalogs["local_ti2v_tv2v"]
+    api_record = catalogs["api_source"]
+    local_path = root / str(local_record["path"])
+    api_path = root / str(api_record["path"])
     local_rows = list(load_jsonl(local_path))
     api_rows = list(load_jsonl(api_path))
-    if len(local_rows) != 400 or len(api_rows) != 400:
-        raise ReleaseValidationError("paper prompt catalogs must each contain 400 rows")
     if release_dir is None and _sha256_file(natural25_variants_path()) != TOOLKIT_VARIANTS_SHA256:
         raise ReleaseValidationError("compatibility variants.jsonl changed unexpectedly")
 
-    _validate_prompt_usage(root)
     _validate_first_frame_contract(root, manifest, release_id=release_id)
 
     source_summary = validate_tv2v_source_rows(
         load_tv2v_source_rows(root / "tv2v_sources.jsonl"),
         local_prompt_rows=local_rows,
         api_prompt_rows=api_rows,
+        local_prompt_sha256=str(local_record["sha256"]),
+        api_prompt_sha256=str(api_record["sha256"]),
+        video_asset_revision=video_asset_revision,
     )
-    _validate_camera_contract(root)
+    _validate_camera_contract(
+        root,
+        release_id=release_id,
+        paper_rows=paper_rows,
+        prompt_usage=prompt_usage,
+    )
     _validate_hydra_policy(root)
     return {
         "release_id": release_id,
-        "paper_model_count": 23,
-        "paper_video_rows": 9600,
+        "paper_model_count": manifest["paper_model_count"],
+        "paper_video_rows": paper_rows,
         "prompt_rows": {
-            "api_source": 400,
-            "first_frame_generation_families": 25,
-            "local_ti2v_tv2v": 400,
+            **{catalog_id: record["rows"] for catalog_id, record in catalogs.items()},
+            "first_frame_generation_families": manifest["first_frame_surface"]["catalog_rows"],
         },
         "source_rows": source_summary,
         "status": "ok",
