@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "model-inferred",
   "key": "hunyuan-worldplay",
   "notes": "HunyuanVideo WorldPlay; frame-indexed pose dict (C2W + normalized K); video frames collapse to latent pose frames via stride-4 rule: (num_frames-1)//4+1.",
   "payload_type": "hunyuan_worldplay_pose_dict",

@@ -25,5 +25,6 @@
   "notes": "LiveWorld; TI2V-style first-frame/text/geometry path; anchor pose at index 0, target poses start at index 1; native window is 65 frames (num_frames clamped to 65 when larger); translation not independently verified.",
   "payload_type": "liveworld_geometry_npz",
   "source_video_usage": "first_frame_extraction",
+  "viewpoint_condition_type": "model-inferred",
   "status": "active"
 }

@@ -38,7 +38,10 @@ models = wrbench.list_models(include_deferred=False)
 print(f"Active models ({len(models)}):")
 for key in models:
     rec = wrbench.model_record(key)
-    print(f"  {key:<35} input_kind={rec.input_kind}  adapter={rec.adapter}")
+    print(
+        f"  {key:<35} model_input={rec.model_input:<4} "
+        f"runtime_input={rec.input_kind:<12} adapter={rec.adapter}"
+    )
 
 deferred = wrbench.list_models(include_deferred=True)
 deferred_only = [k for k in deferred if k not in models]

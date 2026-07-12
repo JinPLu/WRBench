@@ -368,6 +368,8 @@ def test_published_23model_model_input_column() -> None:
     csv_map = {row["model_id"]: row["model_input"] for row in csv_rows}
     json_map = {row["model_id"]: row["model_input"] for row in json_rows}
     assert csv_map == json_map, "CSV and JSON disagree on model_input"
+    assert csv_map["liveworld"] == "TI2V"
+    assert csv_map["spatia"] == "TI2V"
 
 
 def test_published_23model_viewpoint_condition_type_column() -> None:

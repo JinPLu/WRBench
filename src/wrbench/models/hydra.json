@@ -27,5 +27,6 @@
   "model_input": "TV2V",
   "payload_type": "hydra_split_camera_json",
   "source_video_usage": "temporal_conditioning_source_video",
+  "viewpoint_condition_type": "source-video",
   "status": "active"
 }

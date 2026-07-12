@@ -1,0 +1,10 @@
+{
+  "aliases": ["wan2.7-i2v"],
+  "input_kind": "image",
+  "key": "wan2-7-i2v",
+  "model_input": "TI2V",
+  "notes": "Reference-only API benchmark row; no local generation adapter.",
+  "source_video_usage": "none",
+  "status": "reference",
+  "viewpoint_condition_type": "prompt-only"
+}

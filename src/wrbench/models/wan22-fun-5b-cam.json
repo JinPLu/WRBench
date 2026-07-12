@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "model-inferred",
   "key": "wan22-fun-5b-cam",
   "notes": "Wan 2.2 Fun 5B CameraCtrl variant; W2C pose text into control_camera_video.",
   "payload_type": "wan_fun_pose_txt",

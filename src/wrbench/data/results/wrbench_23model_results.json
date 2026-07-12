@@ -112,13 +112,13 @@
   "column_status": {
     "paper_group": "DEPRECATED legacy grouping (V2V/Camera/Interactive/API prompt-camera). No longer used in the paper. The paper and the live table builder (wrbench.eval.aggregate.build_wrbench_vnext_main_table) group models by viewpoint_condition_type (source-video/geometry-cache/model-inferred/prompt-only). Retained only to reproduce the frozen published artifact; do not use for new analysis.",
     "source_group": "DEPRECATED legacy provenance bucket (local_deployed/api_prompt_camera). Retained for the frozen artifact only.",
-    "model_input": "Model input modality, one of {T2V, TI2V, TV2V}. Derived from the wrbench registry input_kind (image=TI2V, source_video=TV2V, none=T2V); API prompt-camera rows have no local registry record and are classified by their first-frame image-to-video (I2V) input contract = TI2V. Independent of viewpoint_condition_type: e.g. Gen3C/Spatia consume a source video (TV2V) but deliver a geometry-cache condition, and VerseCrafter takes an image (TI2V) but delivers a geometry-cache condition.",
-    "viewpoint_condition_type": "Paper viewpoint condition type (Table 2): source-video, geometry-cache, model-inferred, or prompt-only. Canonical mapping lives in wrbench.eval.aggregate.build_wrbench_vnext_main_table.VIEWPOINT_CONDITION_BY_MODEL."
+    "model_input": "Model input modality, one of {T2V, TI2V, TV2V}. Canonical values live in the wrbench model registry. Runtime input_kind is separate: LiveWorld and Spatia accept source-video wrappers but use only frame 0, so their benchmark model_input is TI2V.",
+    "viewpoint_condition_type": "Paper viewpoint condition type (Table 2): source-video, geometry-cache, model-inferred, or prompt-only. Canonical values live in the wrbench model registry."
   },
   "model_input_policy": {
-    "T2V": "Text-to-video; no first-frame image and no source/reference video. registry input_kind=none. No T2V model is present in this frozen 23-model table (see wrbench_t2v_results.json for the separate T2V intake table).",
-    "TI2V": "Text + image-to-video; conditioned on a first-frame image. registry input_kind=image, plus all API prompt-camera rows run with first-frame I2V anchoring.",
-    "TV2V": "Text + (source) video-to-video; conditioned on a source/reference video. registry input_kind=source_video."
+    "T2V": "Text-to-video; no first-frame image and no source/reference video.",
+    "TI2V": "Text plus first-frame image-to-video, including wrappers that extract only frame 0.",
+    "TV2V": "Text plus temporal source/reference video-to-video."
   },
   "group_policy": {
     "V2V": "Reference/video-to-video and 3D-aware source-world transformation systems: Gen3C, Hydra, InSpatio World 14B, ReCamMaster, Spatia, VerseCrafter.",
@@ -431,7 +431,7 @@
       "display_name": "LiveWorld",
       "paper_group": "Camera",
       "source_group": "local_deployed",
-      "model_input": "TV2V",
+      "model_input": "TI2V",
       "n_outputs": 500,
       "D1_CamPrec": 0.8121368981000068,
       "D1_CamPrec_n": 500,
@@ -518,7 +518,7 @@
       "display_name": "Spatia",
       "paper_group": "V2V",
       "source_group": "local_deployed",
-      "model_input": "TV2V",
+      "model_input": "TI2V",
       "n_outputs": 500,
       "D1_CamPrec": 0.7041991457894359,
       "D1_CamPrec_n": 500,

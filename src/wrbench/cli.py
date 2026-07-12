@@ -67,6 +67,9 @@ def _cmd_models(args: argparse.Namespace) -> int:
                     "aliases": list(r.aliases),
                     "status": r.status,
                     "input_kind": r.input_kind,
+                    "model_input": r.model_input,
+                    "source_video_usage": r.source_video_usage,
+                    "viewpoint_condition_type": r.viewpoint_condition_type,
                     "adapter": r.adapter,
                     "payload_type": r.payload_type,
                     "calibration_status": r.amplitude.calibration_status,
@@ -83,10 +86,19 @@ def _cmd_models(args: argparse.Namespace) -> int:
         return 0
 
     rows = [
-        [r.key, r.input_kind, r.adapter, r.payload_type, r.amplitude.calibration_status]
+        [
+            r.key,
+            r.model_input or "-",
+            r.source_video_usage or "-",
+            r.viewpoint_condition_type or "-",
+            r.adapter or "-",
+        ]
         for r in records
     ]
-    _print_table(rows, ["key", "input_kind", "adapter", "payload_type", "calibration_status"])
+    _print_table(
+        rows,
+        ["key", "model_input", "source_usage", "viewpoint_condition", "adapter"],
+    )
     return 0
 
 
@@ -275,13 +287,16 @@ def _cmd_generate(args: argparse.Namespace) -> int:
     elif input_kind == "source_video":
         if image_path:
             print(
-                f"error: model {key!r} is a source-video/V2V model; use --source-video, not --image.",
+                f"error: model {key!r} uses a source-video runtime wrapper; "
+                "use --source-video, not --image.",
                 file=sys.stderr,
             )
             return 1
         if not source_video_path:
             print(
-                f"error: model {key!r} is a source-video/V2V model and requires --source-video <path>.",
+                f"error: model {key!r} uses a source-video runtime wrapper and requires "
+                f"--source-video <path> (model_input={record.model_input}, "
+                f"source_video_usage={record.source_video_usage}).",
                 file=sys.stderr,
             )
             return 1
@@ -883,7 +898,9 @@ def _build_parser() -> argparse.ArgumentParser:
         "--json", action="store_true", help="Output full records as a JSON array."
     )
     p_models.add_argument(
-        "--deferred", action="store_true", help="Include deferred (not-yet-dispatchable) models."
+        "--deferred",
+        action="store_true",
+        help="Include deferred and reference-only (not dispatchable) models.",
     )
 
     # presets
@@ -923,7 +940,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p_gen.add_argument("--image", metavar="PATH", help="Input image (required for TI2V models).")
     p_gen.add_argument(
         "--source-video", metavar="PATH", dest="source_video",
-        help="Input source video (required for V2V models).",
+        help="Input source video required by source-video runtime wrappers.",
     )
     p_gen.add_argument("--prompt", required=True, metavar="TEXT", help="Text prompt.")
     p_gen.add_argument("--width", type=int, metavar="N", help="Override model registry frame width.")

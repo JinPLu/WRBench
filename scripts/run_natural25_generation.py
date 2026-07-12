@@ -47,16 +47,6 @@ def _task_output_path(out_dir: Path, model: str, task: Natural25CameraTask) -> P
     return out_dir / model / "videos" / f"{task.output_id}.mp4"
 
 
-def _model_input_label(kind: str) -> str:
-    if kind == "none":
-        return "T2V"
-    if kind == "image":
-        return "TI2V"
-    if kind == "source_video":
-        return "TV2V"
-    raise ValueError(f"unsupported input_kind {kind!r}")
-
-
 def _paper_scope_model_id(model: str) -> str:
     """Map public registry keys to frozen paper-scope model identifiers."""
     if model == "inspatio-world":
@@ -262,7 +252,7 @@ def main(argv: list[str] | None = None) -> int:
     manifest_path = run_dir / f"manifest.shard{args.shard_index:02d}.jsonl"
     summary_path = run_dir / f"summary.shard{args.shard_index:02d}.json"
     run_dir.mkdir(parents=True, exist_ok=True)
-    model_input = record.model_input or _model_input_label(kind)
+    model_input = record.model_input
 
     started = time.time()
     counts = {"ok": 0, "failed": 0, "skipped": 0}

@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "model-inferred",
   "key": "hunyuan-game-craft",
   "notes": "HunyuanVideo GameCraft; unified input_pose txt via GetPoseEmbedsFromTxt; yaw sign-calibrated; static uses no semantic native motion actions.",
   "payload_type": "hunyuan_gamecraft_input_pose_txt",

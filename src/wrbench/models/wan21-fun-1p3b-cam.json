@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "model-inferred",
   "key": "wan21-fun-1p3b-cam",
   "notes": "Wan 2.1 Fun 1.3B CameraCtrl variant; same adapter as 14B.",
   "payload_type": "wan_fun_pose_txt",

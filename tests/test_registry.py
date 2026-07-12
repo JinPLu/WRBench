@@ -1,5 +1,7 @@
 """Tests for wrbench.registry: single-source-of-truth invariants."""
 
+import json
+
 from pathlib import Path
 
 import pytest
@@ -94,6 +96,24 @@ def test_source_video_model_input_classification_is_explicit():
         assert record.input_kind == "source_video"
         assert record.model_input == model_input
         assert record.source_video_usage == source_video_usage
+
+
+def test_paper_result_models_resolve_to_registry_metadata():
+    results_path = (
+        Path(__file__).resolve().parents[1]
+        / "src"
+        / "wrbench"
+        / "data"
+        / "results"
+        / "wrbench_23model_results.json"
+    )
+    rows = json.loads(results_path.read_text(encoding="utf-8"))["rows"]
+
+    assert len(rows) == 23
+    for row in rows:
+        record = model_record(row["model_id"])
+        assert record.model_input == row["model_input"]
+        assert record.viewpoint_condition_type == row["viewpoint_condition_type"]
 
 
 def test_frozen_static_exclusions_match_current_registry_capabilities():

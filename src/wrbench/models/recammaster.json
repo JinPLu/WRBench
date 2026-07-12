@@ -25,5 +25,6 @@
   "notes": "ReCamMaster; 21-latent relative pose embedding (1,21,12) resampled from canonical trajectory.",
   "payload_type": "recammaster_relative_pose_embedding",
   "source_video_usage": "temporal_conditioning_source_video",
+  "viewpoint_condition_type": "source-video",
   "status": "active"
 }

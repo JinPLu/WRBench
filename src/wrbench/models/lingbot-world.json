@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "model-inferred",
   "key": "lingbot-world",
   "notes": "LingBot-World; consumes OpenCV C2W pose arrays plus fx/fy/cx/cy intrinsics (poses_c2ws/poses_Ks).",
   "payload_type": "lingbot_pose_arrays",

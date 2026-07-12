@@ -1,0 +1,10 @@
+{
+  "aliases": ["kling-v2.6"],
+  "input_kind": "image",
+  "key": "kling-v2-6",
+  "model_input": "TI2V",
+  "notes": "Reference-only API benchmark row; no local generation adapter.",
+  "source_video_usage": "none",
+  "status": "reference",
+  "viewpoint_condition_type": "prompt-only"
+}

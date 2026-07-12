@@ -2,8 +2,9 @@
 
 ``compile_camera`` is the single function that turns a frame-action camera script
 into a model-native payload plus auditable sidecars, for any supported model.
-Input kind (image for TI2V, source video for V2V, or no extra media for T2V)
-is resolved from the registry, so callers do not branch on the model family.
+Runtime input kind and benchmark input modality are resolved separately from
+the registry, so source wrappers that extract only frame 0 remain TI2V rather
+than being mislabeled as temporal TV2V.
 With ``dry_run=True`` it compiles the payload and writes sidecars without
 invoking any heavy model pipeline. Real generation is wired through configured
 backends (see ``wrbench.backends``).
@@ -37,7 +38,11 @@ def _require_inputs(
             raise ValueError(f"{key} is an image/TI2V model and requires image=...")
     elif kind == "source_video":
         if not source_video:
-            raise ValueError(f"{key} is a source-video/V2V model and requires source_video=...")
+            record = model_record(key)
+            raise ValueError(
+                f"{key} uses a source-video runtime wrapper and requires source_video=... "
+                f"(model_input={record.model_input}, source_video_usage={record.source_video_usage})"
+            )
     elif kind == "none":
         if image or source_video:
             raise ValueError(f"{key} does not use image= or source_video=; pass prompt=... for text conditioning")
@@ -64,6 +69,9 @@ def _sidecar_metadata(key: str, payload: Any, camera: str, output_path: Path) ->
         {
             "canonical_model_key": key,
             "adapter": record.adapter,
+            "model_input": record.model_input,
+            "source_video_usage": record.source_video_usage,
+            "viewpoint_condition_type": record.viewpoint_condition_type,
             "payload_type": payload.payload_type,
             "official_camera_entrypoint": payload.official_camera_entrypoint,
             "coordinate_convention": payload.target_trajectory.coordinate_convention,

@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "model-inferred",
   "key": "lingbot-world-act",
   "notes": "LingBot-World act-mode; adds WASD action matrix derived from pan/dolly camera script segments in addition to pose arrays.",
   "payload_type": "lingbot_pose_arrays",

@@ -20,6 +20,7 @@
   "default_height": 480,
   "default_width": 832,
   "input_kind": "image",
+  "viewpoint_condition_type": "geometry-cache",
   "key": "versecrafter",
   "notes": "VerseCrafter; OpenCV C2W converted to Blender C2W extrinsics in custom_camera_trajectory.npz.",
   "payload_type": "versecrafter_npz",

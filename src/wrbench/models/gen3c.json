@@ -34,5 +34,6 @@
   "notes": "GEN3C; official dynamic path; W2C matrices and intrinsics for ViPE cache rendering; requires source-matched rgb/depth/pose/intrinsics cache at inference time.",
   "payload_type": "gen3c_w2c_intrinsics",
   "source_video_usage": "temporal_conditioning_via_gen3c_vipe_cache",
+  "viewpoint_condition_type": "geometry-cache",
   "status": "active"
 }

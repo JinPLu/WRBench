@@ -1,0 +1,10 @@
+{
+  "aliases": ["hailuo-2.3"],
+  "input_kind": "image",
+  "key": "hailuo-2-3",
+  "model_input": "TI2V",
+  "notes": "Reference-only API benchmark row; no local generation adapter.",
+  "source_video_usage": "none",
+  "status": "reference",
+  "viewpoint_condition_type": "prompt-only"
+}

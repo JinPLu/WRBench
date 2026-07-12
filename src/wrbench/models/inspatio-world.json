@@ -1,7 +1,8 @@
 {
   "adapter": "inspatio",
   "aliases": [
-    "inspatio-world"
+    "inspatio-world",
+    "inspatio-world-14b"
   ],
   "amplitude": {
     "calibration_status": "calibrated_acceptance_20260616",
@@ -24,5 +25,6 @@
   "model_input": "TV2V",
   "payload_type": "inspatio_per_frame_action_txt",
   "source_video_usage": "temporal_conditioning_source_video",
+  "viewpoint_condition_type": "source-video",
   "status": "active"
 }

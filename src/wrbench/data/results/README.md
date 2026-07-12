@@ -20,7 +20,7 @@ Identity / grouping columns (before the numeric metrics):
 | `model_id` | current | Canonical model key (matches the row order; do not reorder). |
 | `display_name` | current | Human-readable model name. |
 | `viewpoint_condition_type` | current | **Paper viewpoint condition type** (Table 2): `source-video`, `geometry-cache`, `model-inferred`, or `prompt-only` — see below. |
-| `model_input` | frozen metadata; two-row taxonomy superseded | Historical model-input label in the frozen table. Use the current registry/release contract for temporal-vs-first-frame classification — see below. |
+| `model_input` | current | Benchmark input modality: `T2V`, `TI2V`, or temporal `TV2V`. |
 | `paper_group` | **deprecated** | Legacy grouping (`V2V` / `Camera` / `Interactive` / `API prompt-camera`). No longer used by the paper. |
 | `source_group` | **deprecated** | Legacy provenance bucket (`local_deployed` / `api_prompt_camera`). |
 
@@ -41,8 +41,7 @@ the requested viewpoint change:
 | `model-inferred` | No external view-state reference; the new view is synthesized under local camera/action/state controls | Wan-Fun, LingBot, LiveWorld, Hunyuan GameCraft/WorldPlay, MagicWorld |
 | `prompt-only` | Natural-language camera intent only (CamAlign, not strict CamPrec) | Hailuo, HappyHorse, Kling, Wan I2V APIs |
 
-Values are derived from the canonical mapping in
-`wrbench.eval.aggregate.build_wrbench_vnext_main_table.VIEWPOINT_CONDITION_BY_MODEL`.
+Values are derived from the model registry field `viewpoint_condition_type`.
 Best/second-best marks in the paper are computed **within** each condition type,
 not across the full table.
 
@@ -57,16 +56,10 @@ how it delivers the viewpoint change:
 | `TI2V` | Text + first-frame **image** to video | registry `model_input: TI2V`; includes source wrappers whose `source_video_usage` is `first_frame_extraction`, plus API first-frame I2V rows |
 | `TV2V` | Text + temporal **source/reference video** to video | registry `model_input: TV2V` with temporal `source_video_usage`; `input_kind: source_video` alone is insufficient |
 
-Current values are derived from the single-source-of-truth model registry
-(`wrbench/registry.py` / `wrbench/models/<key>.json` `model_input` and
-`source_video_usage`). The frozen CSV/JSON predate that distinction and retain
-legacy `TV2V` strings for Spatia and LiveWorld so the paper table itself is not
-silently rewritten; the versioned release contract and this README supersede
-those two metadata strings. API
-prompt-camera rows have no local registry record and are classified by their
-first-frame image-to-video input contract (`TI2V`). No `T2V` model appears in
-this frozen 23-model table; the separate T2V intake table lives in
-`wrbench_t2v_results.json`.
+Values are derived from the single-source-of-truth model registry
+(`wrbench/models/<key>.json`). Reference-only API rows are registry records but
+are not dispatchable generation backends. No `T2V` model appears in this frozen
+23-model table; the separate T2V intake table lives in `wrbench_t2v_results.json`.
 
 `model_input` is **orthogonal** to viewpoint grouping. Gen3C, InSpatio World,
 HyDRA, and ReCamMaster are temporal `TV2V`. Spatia and LiveWorld use a

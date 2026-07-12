@@ -24,6 +24,12 @@ MODELS_DIR = Path(__file__).resolve().parent / "models"
 
 VALID_INPUT_KINDS = {"image", "none", "source_video"}
 VALID_MODEL_INPUTS = {"T2V", "TI2V", "TV2V"}
+VALID_VIEWPOINT_CONDITION_TYPES = {
+    "geometry-cache",
+    "model-inferred",
+    "prompt-only",
+    "source-video",
+}
 VALID_SOURCE_VIDEO_USAGES = {
     "none",
     "first_frame_extraction",
@@ -71,6 +77,7 @@ class ModelRecord:
     input_kind: str
     model_input: str
     source_video_usage: str
+    viewpoint_condition_type: str
     adapter: str
     payload_type: str
     amplitude: CameraAmplitude
@@ -84,7 +91,7 @@ class ModelRecord:
 
     @property
     def is_deferred(self) -> bool:
-        return self.status == "deferred"
+        return self.status != "active"
 
 
 def _norm(name: str) -> str:
@@ -140,7 +147,7 @@ def _parse_model_input_metadata(
     input_kind: str,
     payload: dict[str, Any],
 ) -> tuple[str, str]:
-    if status != "active":
+    if status == "deferred":
         return str(payload.get("model_input") or ""), str(payload.get("source_video_usage") or "")
 
     defaults = {"none": "T2V", "image": "TI2V"}
@@ -181,8 +188,8 @@ def _parse_record(path: Path, payload: dict[str, Any]) -> ModelRecord:
     if not isinstance(key, str) or not key:
         raise RegistryError(f"{path.name}: missing 'key'")
     status = _require_str(payload, "status", key=key)
-    if status not in {"active", "deferred"}:
-        raise RegistryError(f"{key}: status must be 'active' or 'deferred'")
+    if status not in {"active", "deferred", "reference"}:
+        raise RegistryError(f"{key}: status must be 'active', 'deferred', or 'reference'")
     input_kind = str(payload.get("input_kind") or "")
     if status == "active" and input_kind not in VALID_INPUT_KINDS:
         raise RegistryError(f"{key}: input_kind must be one of {sorted(VALID_INPUT_KINDS)}")
@@ -208,6 +215,14 @@ def _parse_record(path: Path, payload: dict[str, Any]) -> ModelRecord:
         input_kind=input_kind,
         payload=payload,
     )
+    viewpoint_condition_type = str(payload.get("viewpoint_condition_type") or "")
+    if viewpoint_condition_type and viewpoint_condition_type not in VALID_VIEWPOINT_CONDITION_TYPES:
+        raise RegistryError(
+            f"{key}: viewpoint_condition_type must be one of "
+            f"{sorted(VALID_VIEWPOINT_CONDITION_TYPES)}"
+        )
+    if status == "reference" and not viewpoint_condition_type:
+        raise RegistryError(f"{key}: reference records require viewpoint_condition_type")
     return ModelRecord(
         key=key,
         aliases=aliases,
@@ -215,6 +230,7 @@ def _parse_record(path: Path, payload: dict[str, Any]) -> ModelRecord:
         input_kind=input_kind,
         model_input=model_input,
         source_video_usage=source_video_usage,
+        viewpoint_condition_type=viewpoint_condition_type,
         adapter=adapter,
         payload_type=_require_str(payload, "payload_type", key=key) if status == "active" else str(payload.get("payload_type") or ""),
         amplitude=amplitude,
@@ -293,6 +309,13 @@ def model_input(name: str) -> str:
 
 def source_video_usage(name: str) -> str:
     return model_record(name).source_video_usage
+
+
+def viewpoint_condition_type(name: str) -> str:
+    value = model_record(name).viewpoint_condition_type
+    if not value:
+        raise RegistryError(f"{name}: viewpoint_condition_type is not declared")
+    return value
 
 
 def adapter_name(name: str) -> str:

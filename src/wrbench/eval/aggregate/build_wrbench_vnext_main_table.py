@@ -12,6 +12,7 @@ from statistics import mean
 from typing import Any, Mapping
 
 from . import latest_d1_d6_metrics as metric_contract
+from wrbench.registry import viewpoint_condition_type
 
 EXCLUDED_MAIN_TABLE_MODELS = set(
     metric_contract.MAIN_TABLE_HYPERPARAMETERS["excluded_main_table_models"]
@@ -21,53 +22,8 @@ D1_SPEC = metric_contract.metric_by_dimension("D1")
 D2_SPEC = metric_contract.metric_by_dimension("D2")
 GATE_FIELD = metric_contract.WORLDSTATE_GATE_FIELD
 
-VIEWPOINT_CONDITION_BY_MODEL: dict[str, str] = {
-    "recammaster": "source-video",
-    "hydra": "source-video",
-    "inspatio-world": "source-video",
-    "inspatio_world_14b": "source-video",
-    "gen3c": "geometry-cache",
-    "spatia": "geometry-cache",
-    "versecrafter": "geometry-cache",
-    "wan21-fun-14b-cam": "model-inferred",
-    "wan21_fun_14b_cam": "model-inferred",
-    "wan21-fun-1p3b-cam": "model-inferred",
-    "wan21_fun_1p3b_cam": "model-inferred",
-    "wan22-fun-5b-cam": "model-inferred",
-    "wan22_fun_5b_cam": "model-inferred",
-    "wan22-fun-a14b-cam": "model-inferred",
-    "wan22_fun_a14b_cam": "model-inferred",
-    "lingbot-world": "model-inferred",
-    "lingbot_world": "model-inferred",
-    "lingbot-world-act": "model-inferred",
-    "lingbot_world_act": "model-inferred",
-    "liveworld": "model-inferred",
-    "hunyuan-game-craft": "model-inferred",
-    "hunyuan_game_craft": "model-inferred",
-    "hunyuan-worldplay": "model-inferred",
-    "hunyuan_worldplay": "model-inferred",
-    "magicworld": "model-inferred",
-    "hailuo-2.3": "prompt-only",
-    "hailuo_2_3": "prompt-only",
-    "happyhorse-1.0-i2v": "prompt-only",
-    "happyhorse_1_0_i2v": "prompt-only",
-    "kling-v2.6": "prompt-only",
-    "kling_v2_6": "prompt-only",
-    "wan2.2-i2v-plus": "prompt-only",
-    "wan2_2_i2v_plus": "prompt-only",
-    "wan2.6-i2v": "prompt-only",
-    "wan2_6_i2v": "prompt-only",
-    "wan2.7-i2v": "prompt-only",
-    "wan2_7_i2v": "prompt-only",
-    "wanx2.1-i2v-turbo": "prompt-only",
-    "wanx2_1_i2v_turbo": "prompt-only",
-}
-
-
 def _viewpoint_condition(model: str) -> str:
-    key = str(model).replace("_", "-")
-    alt = str(model).replace("-", "_")
-    return VIEWPOINT_CONDITION_BY_MODEL.get(model) or VIEWPOINT_CONDITION_BY_MODEL.get(key) or VIEWPOINT_CONDITION_BY_MODEL.get(alt) or "unknown"
+    return viewpoint_condition_type(model)
 
 
 def _gate_applicable(row: Mapping[str, Any]) -> bool | None:
