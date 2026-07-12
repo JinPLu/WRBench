@@ -33,7 +33,7 @@ compile (numpy, no config)  →  generate (optional, GPU)  →  evaluate (option
 - **CamPrec** — strict requested-control trajectory precision for models that receive explicit trajectories.
 - **CamAlign** — common-yaw / static-hold intent alignment for prompt-only and API models (and as a separate paper column in the main table).
 
-Contract: [`src/wrbench/eval/contract/`](../src/wrbench/eval/contract/)
+Contract: [`src/wrbench/eval/contract/`](../../src/wrbench/eval/contract/)
 
 ## Configure scorers
 
@@ -140,7 +140,6 @@ the layout information that TI2V/TV2V runs get from the first frame.
 | `src/wrbench/data/natural25/t2v_layout_anchors.jsonl` | Text-only layout anchors for subject/interactor/open-surface/background facts |
 | `src/wrbench/data/natural25/prompt_profiles/t2v_layout_anchor.json` | T2V prompt-profile policy; excludes T2I/TI2V style wording |
 | `src/wrbench/data/natural25/camera_scopes/t2v_rotation_stress_30_60.json` | Formal T2V rotation-stress scope: `static`, `yaw30_LR`, `yaw30_RL`, `yaw60_LR`, `yaw60_RL` |
-| `src/wrbench/data/natural25/variants.legacy_pronoun_20260620.jsonl` | Compatibility snapshot for released T2V-addendum metadata; not the paper prompt-of-record |
 | `src/wrbench/data/results/wrbench_t2v_results.json` | T2V-only benchmark table (separate from the frozen 23-model main table) |
 | `wrbench.t2v` | Intake acceptance gates + minWM rotation-step calibration checks |
 

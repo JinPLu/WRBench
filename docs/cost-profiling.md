@@ -63,13 +63,11 @@ inside the child process and write spans through the returned recorder. Under
 
 Profiling is **stdlib-only** plus optional `nvidia-smi` on PATH for GPU sampling. No torch required.
 
-## Published cost table (2026-06-17)
+## Cost-table output
 
-Full-model resource profile summary (**18** ACTIVE smoke models with generated rows at
-time of publication; includes `hunyuan-game-craft` yaw60 re-profiled with stage spans):
-
-- [resource_profile_summary.all.md](data/resource_profile_summary.all.md)
-- [resource_profile_summary.all.json](data/resource_profile_summary.all.json)
+`wrbench profile` writes the resource summary for the runs you record. WRBench
+does not bundle a hardware-specific cost table because GPU type, runtime stack,
+and model revisions change the result.
 
 Headline metric: `gpu_seconds_per_output_second` (preprocess+inference only; model load
 reported separately). Rows with `generation_status != generated` are excluded from the

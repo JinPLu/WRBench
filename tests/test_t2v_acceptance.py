@@ -10,7 +10,6 @@ import wrbench
 from wrbench.datasets import (
     load_jsonl,
     natural25_families_path,
-    natural25_legacy_variants_path,
     natural25_prompt_profile_path,
     natural25_t2v_event_tails_path,
     natural25_t2v_layout_anchors_path,
@@ -71,15 +70,6 @@ def test_bundled_ti2v_variants_keep_legacy_pronoun_contract() -> None:
     sample = next(row for row in variants if row["variant_id"] == "bedroom_adult_bed_sit__T1__none")
     assert "Immediately, he walks toward the bed." in sample["ti2v_prompt"]
     assert "Immediately, the adult person walks toward the bed." not in sample["ti2v_prompt"]
-
-
-def test_legacy_snapshot_matches_active_ti2v_prompt_records() -> None:
-    legacy_path = natural25_legacy_variants_path()
-    assert legacy_path.is_file()
-    legacy = {row["variant_id"]: row["ti2v_prompt"] for row in load_jsonl(legacy_path)}
-    current = {row["variant_id"]: row["ti2v_prompt"] for row in load_jsonl(natural25_variants_path())}
-    assert legacy.keys() == current.keys()
-    assert legacy == current
 
 
 def test_t2v_event_tails_hold_subject_anchored_prompt_profile_text() -> None:

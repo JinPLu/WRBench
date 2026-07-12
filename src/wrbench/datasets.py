@@ -177,10 +177,6 @@ def natural25_t2v_rotation_stress_camera_scope_path() -> Path:
     return natural25_dir() / "camera_scopes" / "t2v_rotation_stress_30_60.json"
 
 
-def natural25_legacy_variants_path() -> Path:
-    return natural25_dir() / "variants.legacy_pronoun_20260620.jsonl"
-
-
 def _require_nonempty(value: Any, *, field_name: str, row_id: str) -> str:
     text = str(value or "").strip()
     if not text:

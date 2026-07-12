@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+
+- Model input, source usage, and viewpoint-condition metadata now come from the
+  model registry for all 23 paper rows, including reference-only API models.
+- LiveWorld and Spatia machine-readable results now correctly report TI2V
+  first-frame extraction rather than temporal TV2V.
+- Removed the byte-identical legacy Natural-25 variants copy; `variants.jsonl`
+  remains the only toolkit compatibility surface, while paper prompts stay in
+  the versioned release directory.
+
 ## 0.1.2 — 2026-07-12
 
 ### Added
