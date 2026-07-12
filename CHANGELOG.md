@@ -1,12 +1,33 @@
 # Changelog
 
+## 0.1.2 — 2026-07-12
+
+### Added
+
+- The exact 25-row first-frame generation catalog and SHA256-bound mapping
+  from every Natural-25 `family_id` to its bundled PNG.
+- Validation that the frozen prompt catalogs, first-frame catalog and bytes,
+  camera scope, and TV2V source-video map form one self-consistent release.
+
+### Changed
+
+- First-frame metadata now cites the actual generation prompt catalog instead
+  of the current toolkit `families.jsonl` compatibility surface.
+- Release documentation distinguishes the immutable 9,600-row paper table
+  from corrected or newly added assets in the 11,100-row rolling dataset.
+- The frozen VerseCrafter row now discloses the 120 TI2V30 assets identified by
+  decoded-frame-0 lineage audit for replacement and rescoring on rolling v2.
+- Both issue-4 preparation branches are recorded as ancestors of `main`;
+  their already-landed content was not duplicated.
+
 ## 0.1.1 — 2026-07-12
 
 ### Added
 
-- Immutable `paper_main_20260608` Natural-25 release contract with exact local
-  and API-source prompt catalogs, frozen camera scope, a 100-row Wan2.7 source
-  manifest, and explicit HyDRA segment/evaluator provenance.
+- Immutable `paper_main_20260608` Natural-25 release contract with the exact
+  local-generation catalog and historical API source catalog, frozen camera
+  scope, a 100-row Wan2.7 I2V source manifest, and explicit HyDRA
+  segment/evaluator provenance.
 - Package loaders and validation for named Natural-25 paper releases.
 - Resumable `scripts/prepare_paper_tv2v_sources.py` source preparation with
   plan, download, verify-only, SHA256 verification, and overwrite refusal.
@@ -25,8 +46,8 @@
 ### Changed
 
 - `variants.jsonl` remains available as the active deterministic toolkit
-  surface, while the exact frozen paper prompts now live under
-  `natural25/releases/paper_main_20260608/`.
+  surface, while the local prompt-of-record and bounded historical API source
+  catalog live under `natural25/releases/paper_main_20260608/`.
 - Natural-25 generation accepts explicit `--source-video-task-map` and
   `--source-video-root`, verifies each source once across camera cells, rejects
   repeated-first-frame benchmark inputs, and records source provenance in the

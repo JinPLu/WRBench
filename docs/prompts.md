@@ -111,7 +111,7 @@ The frozen paper release has two distinct prompt surfaces:
 
 `prompt_usage.json` maps every frozen model to exactly one catalog. See
 `src/wrbench/data/results/README.md` for the corresponding 23-model scope.
-The TV2V source manifest separately preserves all 100 exact Wan2.7 provider
+The TV2V source manifest separately preserves all 100 exact Wan2.7 I2V provider
 request sidecars. Seventy-five are represented by a frozen catalog; 25
 `T2_div_a` requests predate both catalogs. Their task-to-static asset mapping is
 not a claim of prompt-text equality.

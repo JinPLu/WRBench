@@ -1,8 +1,21 @@
 # WRBench paper release `paper_main_20260608`
 
 This directory is the immutable reproducibility contract for the frozen
-23-model, 9,600-output WRBench paper table dated 2026-06-08. It corrects public
-release provenance without changing a benchmark score or video byte.
+23-model, 9,600-output WRBench paper table dated 2026-06-08. Within this frozen
+historical attestation, the provenance repair changes neither the recorded
+scores nor the attested video bytes.
+
+The separate 11,100-row rolling public release may correct paper-associated
+per-video metadata and may replace independently verified assets with newly
+computed scores. Those rolling changes are versioned separately and do not
+rewrite the frozen paper aggregates or present replacement assets as the
+original paper bytes.
+
+One confirmed correction is explicitly outside this frozen attestation: a
+decoded-frame-0 lineage audit found 120 VerseCrafter TI2V30 rows (15 families
+× 4 tiers × LR/RL at 30°) with an incorrect first frame. Their original bytes
+and scores remain historical frozen provenance. Replacement assets, QC, and
+new scores belong only to the separately tagged rolling release.
 
 ## Prompt surfaces
 
@@ -19,6 +32,15 @@ The active top-level `natural25/variants.jsonl` remains available for toolkit
 compatibility. It is a current deterministic toolkit surface, not the prompt
 file of record for this frozen paper release.
 
+## First-frame surface
+
+`first_frame_generation_families.jsonl` is the exact 25-row catalog used to
+generate the bundled Natural-25 first frames. The top-level
+`first_frames_manifest.json` maps each `family_id` to that catalog prompt and
+to the released PNG with separate prompt, catalog, and image SHA256 values.
+The current top-level `families.jsonl` remains a toolkit surface and must not
+be substituted as historical first-frame generation provenance.
+
 ## Camera and source-video surfaces
 
 `camera_scope.json` freezes 6,400 local dual-angle outputs, 1,100 local static
@@ -28,7 +50,7 @@ This 9,600-row paper surface supersedes the older 4,200-row type-specific
 TI2V60/TV2V30 protocol as the paper-table contract.
 
 `tv2v_sources.jsonl` maps each of the 100 `...__none` content-task IDs to one
-`...__static` source-catalog row and one existing Wan2.7 static conditioning
+`...__static` source-catalog row and one existing Wan2.7 I2V static conditioning
 asset at an immutable dataset revision. These conditioning assets are not
 additional benchmark outputs. Each row also preserves the exact provider
 request sidecar prompt and its hash. Seventy-five requests are represented by
@@ -37,9 +59,9 @@ explicitly labeled `exact_request_sidecar_not_represented_by_frozen_catalogs`.
 The task-to-static ID mapping must not be interpreted as prompt-text equality.
 
 **Maintainer rationale (not a comparative model claim):** development
-screening found this Wan2.7 static-camera pool's event completion and visual
+screening found this Wan2.7 I2V static-camera pool's event completion and visual
 quality sufficient for use as one consistent conditioning-input surface. This
-selection does not establish Wan2.7 superiority, and the 100 assets remain
+selection does not establish Wan2.7 I2V superiority, and the 100 assets remain
 conditioning inputs rather than additional benchmark outputs.
 
 Use:

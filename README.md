@@ -89,11 +89,15 @@ D1-CamPrec applies to models with explicit pose or trajectory targets. API and p
 
 The compatibility Hugging Face configs load directly with `datasets`:
 `variants`, `model_scores`, `pairs`, and `videos_master`. The immutable local
-release directory pins the exact paper prompts, first-frame generation catalog
-and bytes, camera denominator, TV2V source assets, and HyDRA evaluation policy.
-The 9,600-row paper table stays frozen. Corrections to non-paper metadata or
-generation assets, and newly evaluated models, are versioned in the separate
-11,100-row rolling dataset so they cannot silently rewrite the paper table.
+release directory pins the exact local-generation paper prompts, the historical
+API source catalog with its retained request-evidence boundary, the first-frame
+generation catalog and bytes, camera denominator, TV2V source assets, and HyDRA
+evaluation policy.
+The 9,600-row paper table and its historical attestation stay frozen. The
+separate, versioned 11,100-row rolling dataset may correct paper-associated
+per-video metadata or replace independently verified assets and rescore them;
+those changes do not rewrite the frozen paper aggregates or claim replacement
+assets as the original paper bytes.
 
 ---
 
@@ -129,7 +133,7 @@ python scripts/prepare_paper_tv2v_sources.py \
 |-------|-----------|-----------|------|------|------|------|------|
 | HyDRA‡ | 0.822 | 0.855 | 0.691 | 0.648 | 0.500 | 0.509 | 0.445 |
 | LiveWorld | 0.812 | 0.856 | 0.775 | 0.703 | 0.541 | 0.661 | 0.600 |
-| VerseCrafter | 0.781 | 0.667 | 0.846 | 0.707 | 0.508 | 0.607 | 0.584 |
+| VerseCrafter§ | 0.781 | 0.667 | 0.846 | 0.707 | 0.508 | 0.607 | 0.584 |
 | Wan-Fun 2.1-1.3B | 0.771 | 0.729 | 0.842 | 0.725 | 0.513 | 0.709 | 0.657 |
 | Wan-Fun 2.2-A14B | 0.758 | 0.553 | **0.848** | **0.810** | **0.625** | 0.698 | 0.649 |
 | Wan-Fun 2.1-14B | 0.757 | 0.526 | 0.846 | 0.733 | 0.530 | 0.659 | 0.621 |
@@ -143,6 +147,12 @@ python scripts/prepare_paper_tv2v_sources.py \
 reconstruction followed by a post-hoc slice. Its maintained CamAlign value
 uses generated-only poses, so 0.822 is provenance rather than directly
 comparable evidence of best camera execution.
+
+§ A decoded-frame-0 lineage audit found that 120 frozen VerseCrafter TI2V30
+rows (15 families × 4 tiers × LR/RL at 30°) used an incorrect first frame. The
+displayed row remains the historical frozen aggregate; corrected assets and
+new scores will be published only on the separate rolling surface and will not
+rewrite these values.
 
 </details>
 

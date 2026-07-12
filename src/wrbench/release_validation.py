@@ -20,6 +20,7 @@ from wrbench.datasets import (
 
 LOCAL_PROMPT_SHA256 = "19d99d90b40fe3453d74a634d615403fe4721597422f1d9d433df1611901ac7e"
 API_SOURCE_PROMPT_SHA256 = "ce4eea268ee0c0f7fb379be8a51eb9920e66cee1e18ad82dd7111eb9c99a2ad7"
+FIRST_FRAME_GENERATION_CATALOG_SHA256 = "bd9243b924354741882e2f1ec84ce7ac6eaedb212975ff76ae0d013e2e0c17d3"
 TOOLKIT_VARIANTS_SHA256 = "35d0fe92aa685afb1d32ca26284b1ab3b6a98d7ef692696831392ab24b3c8b34"
 VIDEO_ASSET_REVISION = "8a927b9322c5d8af6474399ce4840ef4148f8e39"
 EVENT_TIERS = {"T0", "T1", "T2_div_a", "T2_div_b"}
@@ -85,6 +86,7 @@ EXPECTED_LOCAL_CURRENT_STATIC = {
 }
 EXPECTED_ARTIFACT_ROWS = {
     "README.md": 1,
+    "first_frame_generation_families.jsonl": 25,
     "variants.local_ti2v_tv2v.jsonl": 400,
     "variants.api_source.jsonl": 400,
     "prompt_usage.json": 23,
@@ -378,6 +380,87 @@ def _validate_artifact_ledger(root: Path, manifest: dict[str, Any]) -> None:
             raise ReleaseValidationError(f"{relative_path}: artifact logical row_count mismatch")
 
 
+def _validate_first_frame_contract(
+    root: Path,
+    release_manifest: dict[str, Any],
+    *,
+    release_id: str,
+) -> None:
+    surface = release_manifest.get("first_frame_surface")
+    if not isinstance(surface, dict):
+        raise ReleaseValidationError("release manifest must declare first_frame_surface")
+    if surface.get("catalog_path") != "first_frame_generation_families.jsonl":
+        raise ReleaseValidationError("first-frame surface catalog_path mismatch")
+    if surface.get("catalog_rows") != 25 or surface.get("catalog_sha256") != FIRST_FRAME_GENERATION_CATALOG_SHA256:
+        raise ReleaseValidationError("first-frame surface catalog rows/SHA256 mismatch")
+    if surface.get("correspondence_key") != "family_id" or surface.get("image_count") != 25:
+        raise ReleaseValidationError("first-frame surface correspondence key/image count mismatch")
+
+    catalog_path = root / str(surface["catalog_path"])
+    if _sha256_file(catalog_path) != FIRST_FRAME_GENERATION_CATALOG_SHA256:
+        raise ReleaseValidationError("first-frame generation catalog SHA256 mismatch")
+    catalog_rows = list(load_jsonl(catalog_path))
+    if len(catalog_rows) != 25:
+        raise ReleaseValidationError("first-frame generation catalog must contain 25 rows")
+    by_family = {str(row.get("family_id")): row for row in catalog_rows}
+    if len(by_family) != 25 or any(not row.get("t2i_scene") for row in catalog_rows):
+        raise ReleaseValidationError("first-frame generation catalog family IDs/prompts are incomplete")
+
+    natural25_root = root.parents[1].resolve()
+    manifest_ref = surface.get("image_manifest_path")
+    if manifest_ref != "../../first_frames_manifest.json":
+        raise ReleaseValidationError("first-frame surface image_manifest_path mismatch")
+    image_manifest_path = (root / manifest_ref).resolve()
+    try:
+        image_manifest_path.relative_to(natural25_root)
+    except ValueError as exc:
+        raise ReleaseValidationError("first-frame image manifest escapes Natural-25 root") from exc
+    if image_manifest_path != natural25_root / "first_frames_manifest.json" or not image_manifest_path.is_file():
+        raise ReleaseValidationError("first-frame image manifest path is not canonical")
+    if surface.get("image_manifest_sha256") != _sha256_file(image_manifest_path):
+        raise ReleaseValidationError("first-frame image manifest SHA256 mismatch")
+
+    image_manifest = json.loads(image_manifest_path.read_text(encoding="utf-8"))
+    if not isinstance(image_manifest, list) or len(image_manifest) != 25:
+        raise ReleaseValidationError("active first-frame manifest must contain 25 rows")
+    if {str(row.get("family_id")) for row in image_manifest} != set(by_family):
+        raise ReleaseValidationError("first-frame manifest/catalog family IDs differ")
+    image_paths: set[str] = set()
+    image_hashes: set[str] = set()
+    image_asset_ids: set[str] = set()
+    for row in image_manifest:
+        family_id = str(row["family_id"])
+        prompt = str(by_family[family_id]["t2i_scene"])
+        expected_image_path = f"first_frames/{family_id}.png"
+        if row.get("image_path") != expected_image_path:
+            raise ReleaseValidationError(f"{family_id}: must use canonical image_path {expected_image_path!r}")
+        expected_prompt_source = (
+            f"releases/{release_id}/first_frame_generation_families.jsonl:t2i_scene"
+        )
+        if row.get("prompt_source") != expected_prompt_source:
+            raise ReleaseValidationError(f"{family_id}: first-frame prompt_source mismatch")
+        if row.get("prompt_catalog_id") != f"{release_id}.first_frame_generation_families":
+            raise ReleaseValidationError(f"{family_id}: first-frame prompt catalog ID mismatch")
+        if row.get("correspondence_status") != "exact_generation_catalog_and_bundled_image":
+            raise ReleaseValidationError(f"{family_id}: first-frame correspondence status mismatch")
+        if row.get("t2i_scene") != prompt:
+            raise ReleaseValidationError(f"{family_id}: first-frame prompt does not match generation catalog")
+        if row.get("t2i_scene_sha256") != _sha256_text(prompt):
+            raise ReleaseValidationError(f"{family_id}: first-frame prompt SHA256 mismatch")
+        if row.get("prompt_catalog_sha256") != FIRST_FRAME_GENERATION_CATALOG_SHA256:
+            raise ReleaseValidationError(f"{family_id}: first-frame catalog SHA256 mismatch")
+        image_path = natural25_root / expected_image_path
+        if not image_path.is_file() or row.get("image_sha256") != _sha256_file(image_path):
+            raise ReleaseValidationError(f"{family_id}: bundled first-frame image SHA256 mismatch")
+        if row.get("image_asset_id") != f"sha256:{row['image_sha256']}":
+            raise ReleaseValidationError(f"{family_id}: first-frame image asset ID mismatch")
+        image_paths.add(expected_image_path)
+        image_hashes.add(str(row["image_sha256"]))
+        image_asset_ids.add(str(row["image_asset_id"]))
+    if len(image_paths) != 25 or len(image_hashes) != 25 or len(image_asset_ids) != 25:
+        raise ReleaseValidationError("first-frame image paths, hashes, and asset IDs must each be unique")
+
+
 def _validate_camera_contract(root: Path) -> None:
     scope = _load_json(root / "camera_scope.json")
     if scope.get("schema_version") != "wrbench.paper_camera_scope.v1":
@@ -611,7 +694,24 @@ def validate_natural25_release(
     if manifest.get("current_video_dataset_rows") != 11100:
         raise ReleaseValidationError("release manifest must distinguish the expanded 11,100-row public dataset")
     if manifest.get("scores_changed") is not False or manifest.get("video_bytes_changed") is not False:
-        raise ReleaseValidationError("provenance repair must declare scores_changed=false and video_bytes_changed=false")
+        raise ReleaseValidationError("frozen paper attestation must declare scores_changed=false and video_bytes_changed=false")
+    if manifest.get("change_flags_scope") != "frozen_paper_table_and_historical_attestation_only":
+        raise ReleaseValidationError("release manifest must scope change flags to the frozen paper attestation")
+    if manifest.get("rolling_release_boundary") != {
+        "does_not_rewrite_frozen_paper_aggregates": True,
+        "may_correct_paper_associated_per_video_metadata": True,
+        "may_replace_verified_assets_and_rescore": True,
+        "separate_versioned_surface": True,
+    }:
+        raise ReleaseValidationError("release manifest rolling_release_boundary mismatch")
+    if manifest.get("intended_publication") != {
+        "github_release_tag": "v0.1.2",
+        "hf_natural25_provenance_tag": "paper-main-20260608-repro-v2",
+        "hf_videos_frozen_attestation_tag": "paper-main-20260608-repro-v1",
+        "hf_videos_rolling_update_tag": "rolling-main-20260712-v2",
+        "release_index_path_after_hf_publication": "release_index.json",
+    }:
+        raise ReleaseValidationError("release manifest intended publication surfaces mismatch")
     if manifest.get("source_video_assets", {}).get("revision") != VIDEO_ASSET_REVISION:
         raise ReleaseValidationError("release manifest source-video revision mismatch")
     if manifest.get("model_to_prompt_catalog") != EXPECTED_MODEL_CATALOG:
@@ -638,6 +738,7 @@ def validate_natural25_release(
         raise ReleaseValidationError("compatibility variants.jsonl changed unexpectedly")
 
     _validate_prompt_usage(root)
+    _validate_first_frame_contract(root, manifest, release_id=release_id)
 
     source_summary = validate_tv2v_source_rows(
         load_tv2v_source_rows(root / "tv2v_sources.jsonl"),
@@ -650,7 +751,11 @@ def validate_natural25_release(
         "release_id": release_id,
         "paper_model_count": 23,
         "paper_video_rows": 9600,
-        "prompt_rows": {"api_source": 400, "local_ti2v_tv2v": 400},
+        "prompt_rows": {
+            "api_source": 400,
+            "first_frame_generation_families": 25,
+            "local_ti2v_tv2v": 400,
+        },
         "source_rows": source_summary,
         "status": "ok",
     }

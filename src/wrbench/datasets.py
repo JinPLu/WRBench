@@ -20,6 +20,7 @@ NATURAL25_PAPER_RELEASE_ID = "paper_main_20260608"
 NATURAL25_RELEASE_INDEX_FILE = "release_index.json"
 NATURAL25_RELEASE_CORE_FILES: tuple[str, ...] = (
     "README.md",
+    "first_frame_generation_families.jsonl",
     "variants.local_ti2v_tv2v.jsonl",
     "variants.api_source.jsonl",
     "prompt_usage.json",
@@ -106,6 +107,16 @@ def natural25_release_tv2v_sources_path(
     release_id: str = NATURAL25_PAPER_RELEASE_ID,
 ) -> Path:
     return natural25_release_path("tv2v_sources.jsonl", release_id=release_id)
+
+
+def natural25_release_first_frame_families_path(
+    release_id: str = NATURAL25_PAPER_RELEASE_ID,
+) -> Path:
+    """Locate the exact catalog used to generate the bundled first frames."""
+    return natural25_release_path(
+        "first_frame_generation_families.jsonl",
+        release_id=release_id,
+    )
 
 
 def load_natural25_release_manifest(

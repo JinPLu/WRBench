@@ -23,6 +23,7 @@ from wrbench.release_validation import (
     EXPECTED_MODEL_CATALOG,
     EXPECTED_MODEL_ROWS,
     LOCAL_PROMPT_SHA256,
+    FIRST_FRAME_GENERATION_CATALOG_SHA256,
     ReleaseValidationError,
     VIDEO_ASSET_REVISION,
     validate_natural25_release,
@@ -36,6 +37,16 @@ def _sha256(path: Path) -> str:
 
 def _json(relative_path: str) -> dict:
     return json.loads(natural25_release_path(relative_path).read_text(encoding="utf-8"))
+
+
+def _copy_natural25_release_fixture(tmp_path: Path) -> tuple[Path, Path]:
+    natural25_copy = tmp_path / "natural25"
+    release_copy = natural25_copy / "releases" / NATURAL25_PAPER_RELEASE_ID
+    shutil.copytree(natural25_release_dir(), release_copy)
+    source_natural25 = natural25_release_dir().parents[1]
+    shutil.copy2(source_natural25 / "first_frames_manifest.json", natural25_copy)
+    shutil.copytree(source_natural25 / "first_frames", natural25_copy / "first_frames")
+    return natural25_copy, release_copy
 
 
 def test_paper_release_validates_as_one_self_consistent_contract() -> None:
@@ -56,6 +67,25 @@ def test_exact_prompt_catalog_rows_and_fixed_sha256() -> None:
     assert len(list(load_jsonl(api_path))) == 400
     assert _sha256(local_path) == LOCAL_PROMPT_SHA256
     assert _sha256(api_path) == API_SOURCE_PROMPT_SHA256
+
+
+def test_first_frame_catalog_manifest_and_image_bytes_are_exact() -> None:
+    catalog_path = natural25_release_path("first_frame_generation_families.jsonl")
+    rows = list(load_jsonl(catalog_path))
+    manifest_path = natural25_release_dir().parents[1] / "first_frames_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    by_family = {row["family_id"]: row for row in rows}
+
+    assert len(rows) == len(manifest) == 25
+    assert _sha256(catalog_path) == FIRST_FRAME_GENERATION_CATALOG_SHA256
+    assert {row["family_id"] for row in manifest} == set(by_family)
+    for row in manifest:
+        prompt = by_family[row["family_id"]]["t2i_scene"]
+        image_path = natural25_release_dir().parents[1] / row["image_path"]
+        assert row["t2i_scene"] == prompt
+        assert row["t2i_scene_sha256"] == hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+        assert row["image_sha256"] == _sha256(image_path)
+        assert row["image_asset_id"] == f"sha256:{row['image_sha256']}"
 
 
 def test_source_manifest_is_exact_task_to_static_bijection_with_request_boundary() -> None:
@@ -178,8 +208,7 @@ def test_camera_scope_reproduces_frozen_9600_and_api_has_no_degrees() -> None:
 
 
 def test_release_validator_rejects_camera_scope_model_substitution(tmp_path: Path) -> None:
-    release_copy = tmp_path / NATURAL25_PAPER_RELEASE_ID
-    shutil.copytree(natural25_release_dir(), release_copy)
+    _, release_copy = _copy_natural25_release_fixture(tmp_path)
     relative_path = "camera_scopes/local_static.json"
     scope_path = release_copy / relative_path
     scope = json.loads(scope_path.read_text(encoding="utf-8"))
@@ -192,6 +221,42 @@ def test_release_validator_rejects_camera_scope_model_substitution(tmp_path: Pat
     manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
     with pytest.raises(ReleaseValidationError, match="exact 11 models"):
+        validate_natural25_release(release_dir=release_copy)
+
+
+def test_release_validator_rejects_unbound_first_frame_manifest(tmp_path: Path) -> None:
+    _, release_copy = _copy_natural25_release_fixture(tmp_path)
+    manifest_path = release_copy / "release_manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["first_frame_surface"]["image_manifest_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(ReleaseValidationError, match="image manifest SHA256 mismatch"):
+        validate_natural25_release(release_dir=release_copy)
+
+
+def test_release_validator_rejects_swapped_first_frame_assets(tmp_path: Path) -> None:
+    natural25_copy, release_copy = _copy_natural25_release_fixture(tmp_path)
+    image_manifest_path = natural25_copy / "first_frames_manifest.json"
+    image_manifest = json.loads(image_manifest_path.read_text(encoding="utf-8"))
+    asset_fields = ("image_path", "image_sha256", "image_asset_id")
+    first_asset = {field: image_manifest[0][field] for field in asset_fields}
+    for field in asset_fields:
+        image_manifest[0][field] = image_manifest[1][field]
+        image_manifest[1][field] = first_asset[field]
+    image_manifest_path.write_text(
+        json.dumps(image_manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8",
+    )
+    release_manifest_path = release_copy / "release_manifest.json"
+    release_manifest = json.loads(release_manifest_path.read_text(encoding="utf-8"))
+    release_manifest["first_frame_surface"]["image_manifest_sha256"] = _sha256(image_manifest_path)
+    release_manifest_path.write_text(
+        json.dumps(release_manifest, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ReleaseValidationError, match="canonical image_path"):
         validate_natural25_release(release_dir=release_copy)
 
 
@@ -225,6 +290,20 @@ def test_release_files_and_manifest_load_from_installed_package_layout() -> None
     manifest = load_natural25_release_manifest()
     assert manifest["scores_changed"] is False
     assert manifest["video_bytes_changed"] is False
+    assert manifest["change_flags_scope"] == "frozen_paper_table_and_historical_attestation_only"
+    assert manifest["rolling_release_boundary"] == {
+        "does_not_rewrite_frozen_paper_aggregates": True,
+        "may_correct_paper_associated_per_video_metadata": True,
+        "may_replace_verified_assets_and_rescore": True,
+        "separate_versioned_surface": True,
+    }
+    assert manifest["intended_publication"] == {
+        "github_release_tag": "v0.1.2",
+        "hf_natural25_provenance_tag": "paper-main-20260608-repro-v2",
+        "hf_videos_frozen_attestation_tag": "paper-main-20260608-repro-v1",
+        "hf_videos_rolling_update_tag": "rolling-main-20260712-v2",
+        "release_index_path_after_hf_publication": "release_index.json",
+    }
     assert manifest["current_video_dataset_rows"] == 11100
 
 
@@ -260,18 +339,7 @@ def test_release_index_records_live_cross_repository_publication() -> None:
     assert expected_hashes["release_manifest.json"] == _sha256(
         natural25_release_path("release_manifest.json")
     )
-    for relative_path in (
-        "README.md",
-        "camera_scope.json",
-        "camera_scopes/api_prompt_camera.json",
-        "camera_scopes/local_dual_angle.json",
-        "camera_scopes/local_static.json",
-        "hydra_evaluation_policy.json",
-        "prompt_usage.json",
-        "tv2v_sources.jsonl",
-        "variants.api_source.jsonl",
-        "variants.local_ti2v_tv2v.jsonl",
-    ):
+    for relative_path in NATURAL25_RELEASE_CORE_FILES:
         assert expected_hashes[relative_path] == _sha256(natural25_release_path(relative_path))
     assert index["verification"] == {
         "paper_model_count": 23,

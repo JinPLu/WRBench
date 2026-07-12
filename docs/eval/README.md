@@ -170,7 +170,7 @@ legacy provenance of one published D1 surface:
   full 154-frame submission.
 - Current CamAlign uses the repaired generated-only path. The frozen CamPrec
   value retains legacy full-concat-pose then post-hoc-slice provenance and is
-  not silently replaced in version 0.1.1.
+  not silently replaced by the frozen paper release.
 
 The machine-readable source is
 `src/wrbench/data/natural25/releases/paper_main_20260608/hydra_evaluation_policy.json`.

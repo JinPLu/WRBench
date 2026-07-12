@@ -1,9 +1,9 @@
 {
   "artifacts": {
     "README.md": {
-      "bytes": 4530,
+      "bytes": 5740,
       "row_count": 1,
-      "sha256": "b6de8b3f9eadf492e1566fd1e2f07600ef852527d041b1224b336d416a688cdf"
+      "sha256": "57783bcd262f382ee9b3275a730edab3375440ecf32f5af6354c6fbb086fd3bb"
     },
     "camera_scope.json": {
       "bytes": 10027,
@@ -24,6 +24,11 @@
       "bytes": 1299,
       "row_count": 11,
       "sha256": "375cb374813fba1a6b8c7923efcfebb0b62ea751ff6a6c4734cef455acdd475b"
+    },
+    "first_frame_generation_families.jsonl": {
+      "bytes": 41673,
+      "row_count": 25,
+      "sha256": "bd9243b924354741882e2f1ec84ce7ac6eaedb212975ff76ae0d013e2e0c17d3"
     },
     "hydra_evaluation_policy.json": {
       "bytes": 1144,
@@ -67,8 +72,18 @@
     "local_static_rows": 1100,
     "model_applicability_path": "camera_scope.json"
   },
+  "change_flags_scope": "frozen_paper_table_and_historical_attestation_only",
   "current_video_dataset_rows": 11100,
-  "current_video_dataset_rows_semantics": "Expanded rolling public video release; not the frozen paper denominator.",
+  "current_video_dataset_rows_semantics": "Separate expanded rolling public release. It may correct paper-associated per-video metadata and may replace verified assets with new scores, but it does not rewrite the frozen 9,600-row paper aggregates or historical attestation.",
+  "first_frame_surface": {
+    "catalog_path": "first_frame_generation_families.jsonl",
+    "catalog_rows": 25,
+    "catalog_sha256": "bd9243b924354741882e2f1ec84ce7ac6eaedb212975ff76ae0d013e2e0c17d3",
+    "correspondence_key": "family_id",
+    "image_count": 25,
+    "image_manifest_path": "../../first_frames_manifest.json",
+    "image_manifest_sha256": "7dcb65e7bacae65538044eccafc2cbc2e5e4652b3b779d1560ff2b6d8ef4481f"
+  },
   "hydra_evaluation_surfaces": {
     "current_CamAlign": "generated-only before pose inference",
     "current_D1_policy": "crop [77,154) before pose inference",
@@ -77,14 +92,17 @@
     "policy_path": "hydra_evaluation_policy.json"
   },
   "intended_publication": {
-    "github_release_tag": "v0.1.1",
-    "hf_immutable_tag": "paper-main-20260608-repro-v1",
+    "github_release_tag": "v0.1.2",
+    "hf_natural25_provenance_tag": "paper-main-20260608-repro-v2",
+    "hf_videos_frozen_attestation_tag": "paper-main-20260608-repro-v1",
+    "hf_videos_rolling_update_tag": "rolling-main-20260712-v2",
     "release_index_path_after_hf_publication": "release_index.json"
   },
   "known_limitations": [
+    "A decoded-frame-0 lineage audit found exactly 120 frozen VerseCrafter TI2V30 rows (15 families x 4 tiers x LR/RL at 30 degrees) with an incorrect first frame. Original bytes and scores remain historical frozen provenance; replacement assets and new scores belong only to the separately tagged rolling release.",
     "The frozen HyDRA CamPrec value retains legacy full-concat-pose then post-hoc-slice provenance and is not replaced by this provenance hotfix.",
     "Provider-specific API prompt_to_send materialization can differ from the historical API source catalog and is exact only where request evidence exists.",
-    "Twenty-five T2_div_a Wan2.7 source requests predate both frozen prompt catalogs; exact request sidecars are preserved and the task-to-static ID mapping does not imply prompt-text equality.",
+    "Twenty-five T2_div_a Wan2.7 I2V source requests predate both frozen prompt catalogs; exact request sidecars are preserved and the task-to-static ID mapping does not imply prompt-text equality.",
     "Hunyuan GameCraft has no static row in the frozen 9,600-output release even though the current generation contract supports static; the freeze-time omission reason is not established by retained evidence.",
     "The rolling public video dataset has 11,100 rows; this release freezes only the 23-model, 9,600-output paper table."
   ],
@@ -141,10 +159,16 @@
   "publication_handshake": {
     "content_manifest_self_commit_policy": "This manifest intentionally does not record the future commit containing itself.",
     "step_1": "Publish the GitHub core contract commit G.",
-    "step_2": "Publish both HF metadata commits referencing G.",
-    "step_3": "Add GitHub-only release_index.json in commit H, then create immutable tags and the external release attestation."
+    "step_2": "Publish the Natural-25 provenance-v2 commit and the separate rolling-videos-v2 commit referencing G; retain the frozen-videos-v1 tag unchanged.",
+    "step_3": "Add GitHub-only release_index.json in commit H with live per-surface commits and tags, then create the new Natural-25 v2, rolling-videos v2, and GitHub v0.1.2 tags plus the external release attestation."
   },
   "release_id": "paper_main_20260608",
+  "rolling_release_boundary": {
+    "does_not_rewrite_frozen_paper_aggregates": true,
+    "may_correct_paper_associated_per_video_metadata": true,
+    "may_replace_verified_assets_and_rescore": true,
+    "separate_versioned_surface": true
+  },
   "schema_version": "wrbench.paper_release.v1",
   "scores_changed": false,
   "source_video_assets": {
