@@ -35,6 +35,7 @@ MANIFEST_METADATA_FIELDS = (
     "scenario_type",
     "protocol",
     "visibility_gap_level",
+    "reobservation_support",
     "prompt_id",
     "world_state_prompt",
     "expected_state",
@@ -136,7 +137,7 @@ def _require_raw_oov_score_fields(row: dict[str, Any]) -> None:
 
 
 def _manifest_declares_no_oov(row: dict[str, Any]) -> bool:
-    return row.get("oov_gap") == "none"
+    return row.get("reobservation_support") is False
 
 
 def attach_evidence(row: dict[str, Any], evidence: dict[str, Any] | None, *, policy: str) -> dict[str, Any]:
@@ -174,6 +175,12 @@ def attach_evidence(row: dict[str, Any], evidence: dict[str, Any] | None, *, pol
     out["runtime_v2_evidence_d6_applicable"] = d6_app
     out["runtime_v2_evidence_d5_na_reason"] = d5_reason
     out["runtime_v2_evidence_d6_na_reason"] = d6_reason
+    out["runtime_v2_shared_oov_gate_applicable"] = shared_app
+    out["runtime_v2_shared_oov_gate_na_reason"] = shared_reason
+    out["runtime_v2_d5_gate_applicable"] = d5_app
+    out["runtime_v2_d5_gate_na_reason"] = d5_reason
+    out["runtime_v2_d6_gate_applicable"] = d6_app
+    out["runtime_v2_d6_gate_na_reason"] = d6_reason
     out["runtime_v2_evidence_confidence"] = _evidence_value(evidence, "evidence_confidence", _evidence_value(evidence, "confidence"))
 
     if policy == EVIDENCE_GATE_MASKED_POLICY:

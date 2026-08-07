@@ -1029,7 +1029,7 @@ def test_evidence_export_standalone_required_inputs(tmp_path: Path) -> None:
     assert masked[0]["vlm_state_reasoning"] == 0.5
 
 
-def test_evidence_export_manifest_no_oov_overrides_evidence_gate(tmp_path: Path) -> None:
+def test_evidence_export_oov_gap_none_does_not_override_evidence_gate(tmp_path: Path) -> None:
     manifest = [
         {
             "video_id": "vid-no-oov",
@@ -1060,6 +1060,84 @@ def test_evidence_export_manifest_no_oov_overrides_evidence_gate(tmp_path: Path)
     evidence = [
         {
             "video_id": "vid-no-oov",
+            "schema_version": "qwen3vl_guarded_teacher_gate_v3",
+            "evidence_shared_oov_applicable": True,
+            "evidence_d5_applicable": True,
+            "evidence_d6_applicable": True,
+        }
+    ]
+    manifest_path = tmp_path / "manifest.json"
+    scores_path = tmp_path / "scores.json"
+    evidence_path = tmp_path / "evidence.jsonl"
+    out_dir = tmp_path / "exports"
+    write_json(manifest_path, manifest)
+    write_json(scores_path, scores)
+    write_jsonl(evidence_path, evidence)
+
+    assert (
+        export_mod.main(
+            [
+                "--scores-v7",
+                str(scores_path),
+                "--evidence-jsonl",
+                str(evidence_path),
+                "--manifest-path",
+                str(manifest_path),
+                "--out-dir",
+                str(out_dir),
+            ]
+        )
+        == 0
+    )
+
+    masked = json.loads(
+        (out_dir / "scores_v7_runtime_v2_evidence_first_gate_masked_export.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    row = masked[0]
+    assert row["runtime_v2_evidence_shared_oov_applicable"] is True
+    assert row["runtime_v2_evidence_shared_oov_na_reason"] is None
+    assert row["runtime_v2_evidence_d5_applicable"] is True
+    assert row["runtime_v2_evidence_d5_na_reason"] is None
+    assert row["runtime_v2_evidence_d6_applicable"] is True
+    assert row["runtime_v2_evidence_d6_na_reason"] is None
+    assert row["vlm_spatial_reasoning"] == 0.6
+    assert row["vlm_state_reasoning"] == 0.5
+
+
+def test_evidence_export_reobservation_support_false_overrides_evidence_gate(tmp_path: Path) -> None:
+    manifest = [
+        {
+            "video_id": "vid-no-reobs",
+            "path": "/tmp/vid-no-reobs.mp4",
+            "world_state_prompt": "A child stands beside a chair.",
+            "camera_type": "yaw_RL",
+            "oov_gap": "none",
+            "reobservation_support": False,
+        }
+    ]
+    scores = [
+        {
+            "video_id": "vid-no-reobs",
+            "path": "/tmp/vid-no-reobs.mp4",
+            "vlm_spatial_fidelity": 0.8,
+            "vlm_state_fidelity": 0.7,
+            "vlm_spatial_reasoning": 0.6,
+            "vlm_state_reasoning": 0.5,
+            "runtime_v2_d5_raw_score": 0.6,
+            "runtime_v2_d6_raw_score": 0.5,
+            "vlm_dimension_applicable": {
+                "spatial_fidelity": True,
+                "state_fidelity": True,
+                "spatial_reasoning": True,
+                "state_reasoning": True,
+            },
+        }
+    ]
+    evidence = [
+        {
+            "video_id": "vid-no-reobs",
             "schema_version": "qwen3vl_guarded_teacher_gate_v3",
             "evidence_shared_oov_applicable": True,
             "evidence_d5_applicable": True,
