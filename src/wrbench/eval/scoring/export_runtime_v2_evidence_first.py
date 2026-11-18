@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import json
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
+
+from wrbench.eval._io import read_json, read_records, write_json
+from wrbench.eval.scoring.runtime_common import index_by_video_id
 
 
 SCORE_PROBE_POLICY = "score_probe_export"
@@ -32,6 +34,7 @@ MANIFEST_METADATA_FIELDS = (
     "event_tag",
     "event_delta",
     "oov_gap",
+    "reobservation_enabled",
     "scenario_type",
     "protocol",
     "visibility_gap_level",
@@ -47,28 +50,9 @@ MANIFEST_METADATA_FIELDS = (
 RAW_OOV_SCORE_FIELDS = ("runtime_v2_d5_raw_score", "runtime_v2_d6_raw_score")
 
 
-def load_json(path: Path) -> Any:
-    with path.open(encoding="utf-8") as fh:
-        return json.load(fh)
-
-
-def load_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with path.open(encoding="utf-8") as fh:
-        for line in fh:
-            line = line.strip()
-            if line:
-                rows.append(json.loads(line))
-    return rows
-
-
-def write_json(path: Path, payload: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
-def _index_by_video_id(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {str(row.get("video_id")): row for row in rows if row.get("video_id") is not None}
+load_json = read_json
+load_jsonl = read_records
+_index_by_video_id = index_by_video_id
 
 
 def _manifest_ids(manifest: list[dict[str, Any]] | None) -> list[str] | None:
@@ -135,10 +119,6 @@ def _require_raw_oov_score_fields(row: dict[str, Any]) -> None:
         raise ValueError(f"missing required raw OOV score field(s) for video_id={video_id}: {missing}")
 
 
-def _manifest_declares_no_oov(row: dict[str, Any]) -> bool:
-    return row.get("oov_gap") == "none"
-
-
 def attach_evidence(row: dict[str, Any], evidence: dict[str, Any] | None, *, policy: str) -> dict[str, Any]:
     out = deepcopy(row)
     _require_raw_oov_score_fields(out)
@@ -156,7 +136,8 @@ def attach_evidence(row: dict[str, Any], evidence: dict[str, Any] | None, *, pol
     if evidence is not None and "evidence_shared_oov_applicable" not in evidence and "shared_oov_applicable" not in evidence:
         shared_app = bool(d5_app and d6_app)
         shared_reason = None if shared_app else d5_reason or d6_reason or "unclear"
-    if _manifest_declares_no_oov(out):
+    # oov_gap describes the prompt; the camera can still hide the target.
+    if out.get("reobservation_enabled") is False:
         shared_app = False
         shared_reason = "no_oov"
         d5_app = False

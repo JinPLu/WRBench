@@ -178,5 +178,6 @@
   "input_kind": "image",
   "key": "sana-wm",
   "payload_type": "sana_wm_camera_npy",
-  "status": "active"
+  "status": "active",
+  "viewpoint_condition_type": "model-inferred"
 }

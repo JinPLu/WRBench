@@ -1,6 +1,5 @@
 """Runtime V2 D3-D6 yes/no probe prompts.
 
-This module is intentionally separate from the direct numeric Runtime V2 prompt.
 The scoring signal is the next-token probability of answering Yes versus No for
 each compact probe; continuous dimension scores are derived after the call.
 """
@@ -14,64 +13,14 @@ from typing import Any
 
 PROBE_CATALOG_VERSION = "runtime_v2_probe_catalog_v1"
 DEFAULT_PROMPT_MODE = "runtime_v2_probe_logprob"
-PROMPT_MODE_V3_MINIMAL_WORLD_STATE = "runtime_v2_probe_logprob_v3_minimal_world_state"
-PROMPT_MODE_P2_EVIDENCE_BOUNDARY = "runtime_v2_probe_logprob_p2_evidence_boundary"
-PROMPT_MODE_P3_ANCHOR_IDENTITY_LIGHT = "runtime_v2_probe_logprob_p3_anchor_identity_light"
-PROMPT_MODE_P4_D5_LOCATION_STRICT = "runtime_v2_probe_logprob_p4_d5_location_strict"
-PROMPT_MODE_P5_D5_RETURN_GATE_SOFT = "runtime_v2_probe_logprob_p5_d5_return_gate_soft"
-PROMPT_MODE_P6_D5_WORLD_REGION_CONTINUITY = (
-    "runtime_v2_probe_logprob_p6_d5_world_region_continuity"
-)
-PROMPT_MODE_P6C_D5_RETURN_POSITION_REJECT_RELIEF = (
-    "runtime_v2_probe_logprob_p6c_d5_return_position_reject_relief"
-)
-PROMPT_MODE_P7_D3_RELATION_SPLIT = "runtime_v2_probe_logprob_p7_d3_relation_split"
-PROMPT_MODE_P8_D4_SUBJECT_CAUSAL_RESULT = (
-    "runtime_v2_probe_logprob_p8_d4_subject_causal_result"
-)
-PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED = (
-    "runtime_v2_probe_logprob_p9_d4_p8_d5_p6_combined"
-)
-PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY = (
-    "runtime_v2_probe_logprob_p10_shared_oov_judgeability"
-)
-PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY = (
-    "runtime_v2_probe_logprob_p11_shared_gate_d6_state_continuity"
-)
-PROMPT_MODE_P12_QWEN3VL_EVIDENCE_CONDITIONED = (
-    "runtime_v2_probe_logprob_p12_qwen3vl_evidence_conditioned"
-)
-PROMPT_MODE_P13_QWEN3VL_SUBQUESTION_CONDITIONED = (
-    "runtime_v2_probe_logprob_p13_qwen3vl_subquestion_conditioned"
-)
+PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED = "runtime_v2_probe_logprob_p9_d4_p8_d5_p6_combined"
 PROMPT_MODE_P22_NATIVE_D5D6 = "runtime_v2_probe_logprob_p22_native_d5d6_score_only"
 PROMPT_MODE_P25_D3D4_SLOT_PARSE = "runtime_v2_probe_logprob_p25_d3d4_slot_parse"
-PROMPT_MODE_QWEN36_35B_P9_SCORE = (
-    "runtime_v2_probe_logprob_qwen36_35b_p9_score"
-)
-PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE = (
-    "runtime_v2_probe_logprob_qwen36_35b_shared_oov_gate"
-)
 SUPPORTED_PROMPT_MODES = {
     DEFAULT_PROMPT_MODE,
-    PROMPT_MODE_V3_MINIMAL_WORLD_STATE,
-    PROMPT_MODE_P2_EVIDENCE_BOUNDARY,
-    PROMPT_MODE_P3_ANCHOR_IDENTITY_LIGHT,
-    PROMPT_MODE_P4_D5_LOCATION_STRICT,
-    PROMPT_MODE_P5_D5_RETURN_GATE_SOFT,
-    PROMPT_MODE_P6_D5_WORLD_REGION_CONTINUITY,
-    PROMPT_MODE_P6C_D5_RETURN_POSITION_REJECT_RELIEF,
-    PROMPT_MODE_P7_D3_RELATION_SPLIT,
-    PROMPT_MODE_P8_D4_SUBJECT_CAUSAL_RESULT,
     PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
-    PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
-    PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
-    PROMPT_MODE_P12_QWEN3VL_EVIDENCE_CONDITIONED,
-    PROMPT_MODE_P13_QWEN3VL_SUBQUESTION_CONDITIONED,
     PROMPT_MODE_P22_NATIVE_D5D6,
     PROMPT_MODE_P25_D3D4_SLOT_PARSE,
-    PROMPT_MODE_QWEN36_35B_P9_SCORE,
-    PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE,
 }
 CAMERA_MOTION_CONTEXT_KEY = "__camera_motion__"
 
@@ -265,295 +214,6 @@ RUNTIME_V2_PROBE_CATALOG: tuple[RuntimeV2Probe, ...] = (
     ),
 )
 
-
-SHARED_OOV_GATE_PROBES: tuple[RuntimeV2Probe, ...] = (
-    RuntimeV2Probe(
-        probe_id="OOV_EVER_UNJUDGEABLE",
-        dimension="shared_oov_judgeability",
-        role="gate",
-        polarity="positive",
-        gate_kind="ever_unjudgeable",
-        question=(
-            "Does the prompt-critical subject, target, action, result, or state "
-            "ever become not judgeable enough to identify it and judge both its "
-            "coarse position and action/state?"
-        ),
-    ),
-    RuntimeV2Probe(
-        probe_id="OOV_RETURN_JUDGEABLE",
-        dimension="shared_oov_judgeability",
-        role="gate",
-        polarity="positive",
-        gate_kind="return_judgeable",
-        question=(
-            "After that unjudgeable interval, does it become judgeable again "
-            "enough to compare spatial continuity and state/action continuity?"
-        ),
-    ),
-)
-
-
-V3_QUESTION_OVERRIDES: dict[str, str] = {
-    "D3_POSITION_RELATION": (
-        "Does the visible evidence support a coherent 3D world-space state for "
-        "the prompt-critical subject or target relative to stable scene anchors?"
-    ),
-    "D3_STATIC_ANCHORS": (
-        "Do static anchors such as floor, walls, furniture, counters, doors, or "
-        "fixed background structure make the subject or target motion and final "
-        "placement spatially plausible?"
-    ),
-    "D3_NEG_WRONG_SPATIAL": (
-        "Is there clear visible spatial contradiction, such as wrong target, "
-        "impossible placement, frame-locked motion, an implausible jump, or a "
-        "path that breaks the prompt-critical world state?"
-    ),
-    "D4_ACTION_STATE": (
-        "Does the visible evidence support the prompt-critical action, pose, "
-        "state, contact result, or final outcome over time?"
-    ),
-    "D4_TEMPORAL_PROGRESS": (
-        "Does the action or state progress, persist, or remain stable in the way "
-        "the prompt requires across the sampled video?"
-    ),
-    "D4_NEG_ABSENT_FREEZE": (
-        "Is there clear visible state contradiction, such as absent action, wrong "
-        "behavior, freeze, loop, reset, regression, or impossible state transition?"
-    ),
-    "D5_GATE_HIDDEN": (
-        "Does camera motion, occlusion, or framing make the prompt-critical subject, "
-        "target, or expected world region spatially hidden or unjudgeable for a "
-        "relevant interval?"
-    ),
-    "D5_GATE_RETURN": (
-        "After that interval, does the subject, target, or expected world region "
-        "become spatially inspectable again?"
-    ),
-    "D5_GATE_UNIDENTIFIABLE": (
-        "After the later view returns, is the subject or target so unidentifiable "
-        "that no spatial continuity judgment can be made at all?"
-    ),
-    "D5_RETURN_POSITION": (
-        "When the subject, target, or expected region is inspectable again, is its "
-        "spatial state plausible given the earlier evidence, elapsed hidden time, "
-        "static anchors, and the prompt?"
-    ),
-    "D5_NEG_VANISH_RESET": (
-        "When the subject, target, or expected region is inspectable again, is "
-        "there clear spatial failure such as absence, reset, wrong location, "
-        "implausible jump, or inconsistent reappearance?"
-    ),
-    "D6_GATE_HIDDEN": (
-        "Does the prompt-critical action, pose, result, or state become hidden or "
-        "state-unjudgeable for a relevant interval?"
-    ),
-    "D6_GATE_RETURN": (
-        "After that interval, does later evidence make the action, pose, result, "
-        "or state inspectable again?"
-    ),
-    "D6_GATE_UNIDENTIFIABLE": (
-        "After later evidence returns, is the subject, target, action, or result "
-        "so broken or unclear that no state-continuity judgment can be made at all?"
-    ),
-    "D6_HIDDEN_PROGRESS": (
-        "When later evidence returns, does the action, pose, result, or state look "
-        "like a plausible continuation through hidden time?"
-    ),
-    "D6_NEG_FREEZE_RESET": (
-        "When later evidence returns, is there clear hidden-time state failure such "
-        "as freeze, reset, regression, vanished result, or impossible skipped change?"
-    ),
-}
-
-
-P2_QUESTION_OVERRIDES: dict[str, str] = {
-    "D3_POSITION_RELATION": (
-        "Is there clear visible evidence that the prompt-critical subject or "
-        "target has a plausible 3D position, relation, contact, placement, or "
-        "path relative to static scene anchors and the prompt?"
-    ),
-    "D3_STATIC_ANCHORS": (
-        "Do static anchors such as floor, walls, furniture, doors, counters, or "
-        "fixed background structure make the subject or target's motion and "
-        "placement spatially consistent rather than ambiguous?"
-    ),
-    "D3_NEG_WRONG_SPATIAL": (
-        "Is there clear visible spatial counterevidence, such as the wrong target, "
-        "wrong side, impossible placement, frame-locked sliding, implausible jump, "
-        "or a path that contradicts the prompt-critical world state?"
-    ),
-    "D4_ACTION_STATE": (
-        "Is the prompt-critical action, pose, contact, result, or state visibly "
-        "performed or reached in the video, rather than only implied by the text?"
-    ),
-    "D4_TEMPORAL_PROGRESS": (
-        "Does visible evidence show the action or state progressing, completing, "
-        "or staying maintained over time in the way the prompt requires?"
-    ),
-    "D4_NEG_ABSENT_FREEZE": (
-        "Is there clear visible state counterevidence, such as absent action, "
-        "wrong behavior, freeze, loop, reset, regression, or impossible transition?"
-    ),
-    "D5_GATE_HIDDEN": (
-        "Does camera motion, occlusion, or framing make the prompt-critical subject, "
-        "target, or expected world region spatially unjudgeable for a relevant interval?"
-    ),
-    "D5_GATE_RETURN": (
-        "After that interval, does later video evidence show the subject, target, "
-        "or expected world region well enough to judge spatial continuity?"
-    ),
-    "D5_GATE_UNIDENTIFIABLE": (
-        "After the later view returns, is the subject or target too broken, changed, "
-        "or unidentifiable to make a spatial continuity judgment?"
-    ),
-    "D5_RETURN_POSITION": (
-        "When the subject, target, or expected region becomes judgeable again, is "
-        "its position plausible given earlier visible evidence, elapsed hidden time, "
-        "static anchors, and the prompt-required destination or region?"
-    ),
-    "D5_NEG_VANISH_RESET": (
-        "When the subject, target, or expected region becomes judgeable again, is "
-        "there clear spatial failure: absent target, reset to an earlier place, "
-        "wrong location, impossible jump, or inconsistent reappearance?"
-    ),
-    "D6_GATE_HIDDEN": (
-        "Does the prompt-critical action, pose, result, or state become hidden or "
-        "not judgeable for a relevant interval?"
-    ),
-    "D6_GATE_RETURN": (
-        "After that interval, does later video evidence show the action, pose, "
-        "result, or state well enough to judge state continuity?"
-    ),
-    "D6_GATE_UNIDENTIFIABLE": (
-        "After later evidence returns, is the subject, target, action, or result "
-        "too broken or unclear to judge state continuity?"
-    ),
-    "D6_HIDDEN_PROGRESS": (
-        "When later evidence returns, does the action, pose, result, or state look "
-        "like it plausibly continued through hidden time rather than simply pausing?"
-    ),
-    "D6_NEG_FREEZE_RESET": (
-        "When later evidence returns, is there clear hidden-time state failure such "
-        "as freeze, reset, regression, vanished result, or impossible skipped change?"
-    ),
-}
-
-
-P3_QUESTION_OVERRIDES: dict[str, str] = {
-    "D3_POSITION_RELATION": (
-        "Does the visible evidence support a coherent 3D world-space state for "
-        "the prompt-critical subject or target relative to stable scene anchors?"
-    ),
-    "D3_STATIC_ANCHORS": (
-        "Do static anchors such as floor, walls, furniture, doors, counters, or "
-        "fixed background structure keep the subject or target motion spatially "
-        "interpretable rather than misleading?"
-    ),
-    "D3_NEG_WRONG_SPATIAL": (
-        "Is there clear visible spatial counterevidence, such as the wrong target, "
-        "wrong side, impossible placement, frame-locked sliding, implausible jump, "
-        "or a path that contradicts the prompt-critical world state?"
-    ),
-    "D5_GATE_HIDDEN": (
-        "Does the prompt-critical subject or target become out of view, occluded, "
-        "or otherwise not directly judgeable for a relevant interval?"
-    ),
-    "D5_GATE_RETURN": (
-        "After that interval, does later evidence make the subject or target "
-        "judgeable again?"
-    ),
-    "D5_GATE_UNIDENTIFIABLE": (
-        "After later evidence returns, is the subject or target so changed or "
-        "unclear that no spatial continuity judgment can be made at all?"
-    ),
-    "D5_RETURN_POSITION": (
-        "When the subject, target, or expected region becomes judgeable again, is "
-        "its position plausible relative to the last judgeable evidence, elapsed "
-        "hidden time, static anchors, and the expected region or destination?"
-    ),
-    "D5_NEG_VANISH_RESET": (
-        "When the subject, target, or expected region becomes judgeable again, is "
-        "there visible counterevidence such as absence, wrong location, reset, "
-        "an impossible jump, or inconsistent reappearance?"
-    ),
-    "D6_GATE_HIDDEN": (
-        "Does the prompt-critical action, pose, result, or state become hidden or "
-        "not directly judgeable for a relevant interval?"
-    ),
-    "D6_GATE_RETURN": (
-        "After that interval, does later evidence make the action, pose, result, "
-        "or state judgeable again?"
-    ),
-    "D6_GATE_UNIDENTIFIABLE": (
-        "After later evidence returns, is the subject, target, action, or result "
-        "so broken or unclear that no state-continuity judgment can be made at all?"
-    ),
-    "D6_HIDDEN_PROGRESS": (
-        "When later evidence returns, does the action, pose, result, or state look "
-        "like a plausible continuation through hidden time rather than a paused frame?"
-    ),
-    "D6_NEG_FREEZE_RESET": (
-        "When later evidence returns, is there visible counterevidence such as "
-        "freeze, reset, regression, vanished result, or an impossible skipped change?"
-    ),
-}
-
-
-P4_QUESTION_OVERRIDES: dict[str, str] = {
-    "D5_GATE_HIDDEN": (
-        "Does the prompt-critical subject or target become out of view, occluded, "
-        "or otherwise spatially unjudgeable for a relevant interval?"
-    ),
-    "D5_GATE_RETURN": (
-        "After that interval, does later evidence show the expected world region "
-        "or the same subject or target well enough to judge its location?"
-    ),
-    "D5_GATE_UNIDENTIFIABLE": (
-        "After later evidence returns, is the subject or target too changed, broken, "
-        "or unclear to match for a spatial continuity judgment?"
-    ),
-    "D5_RETURN_POSITION": (
-        "When later evidence is judgeable, does the same prompt-critical subject "
-        "or target occupy a prompt-required world position or expected region that "
-        "is plausible relative to before-hidden evidence and static anchors? "
-        "Visibility alone is insufficient."
-    ),
-    "D5_NEG_VANISH_RESET": (
-        "When later evidence is judgeable, is there visible spatial counterevidence "
-        "such as absence from the expected region, wrong location, reset, impossible "
-        "jump, or inconsistent reappearance?"
-    ),
-}
-
-
-P5_QUESTION_OVERRIDES: dict[str, str] = {
-    "D5_GATE_HIDDEN": (
-        "Does the prompt-critical subject or target become out of view, occluded, "
-        "or otherwise spatially unjudgeable for a relevant interval?"
-    ),
-    "D5_GATE_RETURN": (
-        "After that interval, does later evidence make the same subject, target, "
-        "or expected region visible enough for a spatial judgment? Do not require "
-        "evidence that the location is correct."
-    ),
-    "D5_GATE_UNIDENTIFIABLE": (
-        "After later evidence returns, is the subject or target too unclear to "
-        "match for any spatial continuity judgment?"
-    ),
-    "D5_RETURN_POSITION": (
-        "When later evidence is judgeable, is the same prompt-critical subject "
-        "or target plausibly in the expected region or destination relative to "
-        "before-hidden evidence and static anchors? Do not require exact pixel "
-        "position or camera framing match."
-    ),
-    "D5_NEG_VANISH_RESET": (
-        "When later evidence is judgeable, is there visible spatial counterevidence "
-        "such as absence from the expected region, wrong location, reset, impossible "
-        "jump, or inconsistent reappearance?"
-    ),
-}
-
-
 P6_QUESTION_OVERRIDES: dict[str, str] = {
     "D5_GATE_HIDDEN": (
         "Does the prompt-critical subject or target become out of view, occluded, "
@@ -582,40 +242,6 @@ P6_QUESTION_OVERRIDES: dict[str, str] = {
     ),
 }
 
-
-P6C_QUESTION_OVERRIDES: dict[str, str] = {
-    **P6_QUESTION_OVERRIDES,
-    "D5_RETURN_POSITION": (
-        "When later evidence is judgeable, does it reasonably support continuity "
-        "of the same prompt-critical subject or target in the expected world region, "
-        "using stable anchors and before-hidden evidence? Do not require exact "
-        "placement, identical camera framing, or complete trajectory visibility. "
-        "Answer Yes when the coarse world-region relation is plausible and there "
-        "is no visible spatial counterevidence; reappearance alone is still "
-        "insufficient."
-    ),
-}
-
-
-P7_QUESTION_OVERRIDES: dict[str, str] = {
-    "D3_POSITION_RELATION": (
-        "Does visible evidence support the prompt-critical subject or target's "
-        "coarse final world-space relation to the required target, support surface, "
-        "container, destination, or surrounding environment?"
-    ),
-    "D3_STATIC_ANCHORS": (
-        "Do stable anchors support a coherent 3D scene for the subject or target's "
-        "world motion, placement, contact, support, containment, or return toward "
-        "the expected region?"
-    ),
-    "D3_NEG_WRONG_SPATIAL": (
-        "Is there clear visible spatial counterevidence, such as wrong target or "
-        "side, missing required contact/support/containment, camera-dragged or "
-        "frame-locked placement, impossible jump, or impossible path?"
-    ),
-}
-
-
 P8_QUESTION_OVERRIDES: dict[str, str] = {
     "D4_ACTION_STATE": (
         "Does the prompt-critical primary subject and any causal target actually "
@@ -633,23 +259,6 @@ P8_QUESTION_OVERRIDES: dict[str, str] = {
         "or wrong final state?"
     ),
 }
-
-
-P11_D6_QUESTION_OVERRIDES: dict[str, str] = {
-    "D6_HIDDEN_PROGRESS": (
-        "When later evidence is judgeable again, does the action, pose, result, "
-        "or state look like it plausibly continued, completed, or stayed "
-        "maintained through the unjudgeable interval, rather than freezing, "
-        "resetting, regressing, or skipping impossibly?"
-    ),
-    "D6_NEG_FREEZE_RESET": (
-        "When later evidence is judgeable again, is there clear state-continuity "
-        "failure through the unjudgeable interval, such as freezing, resetting, "
-        "regressing, losing a result/state, or skipping the required action/state "
-        "impossibly?"
-    ),
-}
-
 
 P25_D3D4_QUESTIONS: dict[str, str] = {
     "D3_POSITION_RELATION": (
@@ -819,69 +428,20 @@ def question_for_probe(probe: RuntimeV2Probe, prompt_mode: str = DEFAULT_PROMPT_
     prompt_mode = validate_prompt_mode(prompt_mode)
     if prompt_mode == PROMPT_MODE_P25_D3D4_SLOT_PARSE and probe.probe_id in P25_D3D4_QUESTIONS:
         return P25_D3D4_QUESTIONS[probe.probe_id]
-    if prompt_mode in {PROMPT_MODE_P22_NATIVE_D5D6, PROMPT_MODE_P25_D3D4_SLOT_PARSE}:
-        if probe.dimension == "state_fidelity":
-            return P8_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-        if probe.dimension == "spatial_reasoning":
-            return P6_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-        return probe.question
-    if prompt_mode == PROMPT_MODE_QWEN36_35B_P9_SCORE:
-        prompt_mode = PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED
-    elif prompt_mode == PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE:
-        prompt_mode = PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY
     if prompt_mode in {
-        PROMPT_MODE_P12_QWEN3VL_EVIDENCE_CONDITIONED,
-        PROMPT_MODE_P13_QWEN3VL_SUBQUESTION_CONDITIONED,
+        PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+        PROMPT_MODE_P22_NATIVE_D5D6,
+        PROMPT_MODE_P25_D3D4_SLOT_PARSE,
     }:
-        prompt_mode = PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY
-    if prompt_mode == PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY:
-        if probe.probe_id in P11_D6_QUESTION_OVERRIDES:
-            return P11_D6_QUESTION_OVERRIDES[probe.probe_id]
-        prompt_mode = PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY
-    if prompt_mode == PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY:
         if probe.dimension == "state_fidelity":
             return P8_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
         if probe.dimension == "spatial_reasoning":
             return P6_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-        return probe.question
-    if prompt_mode == PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED:
-        if probe.dimension == "state_fidelity":
-            return P8_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-        if probe.dimension == "spatial_reasoning":
-            return P6_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-        return probe.question
-    if prompt_mode == PROMPT_MODE_P8_D4_SUBJECT_CAUSAL_RESULT:
-        return P8_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P7_D3_RELATION_SPLIT:
-        return P7_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P6C_D5_RETURN_POSITION_REJECT_RELIEF:
-        return P6C_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P6_D5_WORLD_REGION_CONTINUITY:
-        return P6_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P5_D5_RETURN_GATE_SOFT:
-        return P5_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P4_D5_LOCATION_STRICT:
-        return P4_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P3_ANCHOR_IDENTITY_LIGHT:
-        return P3_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_P2_EVIDENCE_BOUNDARY:
-        return P2_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
-    if prompt_mode == PROMPT_MODE_V3_MINIMAL_WORLD_STATE:
-        return V3_QUESTION_OVERRIDES.get(probe.probe_id, probe.question)
     return probe.question
 
 
 def active_probe_catalog(prompt_mode: str = DEFAULT_PROMPT_MODE) -> tuple[RuntimeV2Probe, ...]:
-    prompt_mode = validate_prompt_mode(prompt_mode)
-    if prompt_mode in {
-        PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
-        PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
-        PROMPT_MODE_P12_QWEN3VL_EVIDENCE_CONDITIONED,
-        PROMPT_MODE_P13_QWEN3VL_SUBQUESTION_CONDITIONED,
-        PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE,
-    }:
-        score_probes = tuple(probe for probe in RUNTIME_V2_PROBE_CATALOG if probe.role == "score")
-        return score_probes + SHARED_OOV_GATE_PROBES
+    validate_prompt_mode(prompt_mode)
     return RUNTIME_V2_PROBE_CATALOG
 
 
@@ -930,10 +490,11 @@ def format_evidence_context(
 ) -> str:
     if not evidence_context:
         return ""
-    mode = evidence_context_mode or "visibility_v1"
-    label = "Qwen3-VL structured visibility evidence from a previous pass"
-    if mode == "subquestion_v1":
-        label = "Qwen3-VL structured subquestion evidence from a previous pass"
+    label = (
+        "Qwen3-VL structured subquestion evidence from a previous pass"
+        if evidence_context_mode == "subquestion_v1"
+        else "Qwen3-VL structured visibility evidence from a previous pass"
+    )
     compact_json = json.dumps(evidence_context, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return f"""
 {label}:
@@ -990,20 +551,13 @@ def build_runtime_v2_probe_prompt(
             evidence_context=evidence_context,
             evidence_context_mode=evidence_context_mode,
         )
-    if (
-        prompt_mode
-        in {
-            PROMPT_MODE_P8_D4_SUBJECT_CAUSAL_RESULT,
-            PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
-            PROMPT_MODE_P22_NATIVE_D5D6,
-            PROMPT_MODE_P25_D3D4_SLOT_PARSE,
-            PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
-            PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
-            PROMPT_MODE_QWEN36_35B_P9_SCORE,
-            PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE,
-        }
-        and probe.dimension == "state_fidelity"
-    ):
+
+    combined_modes = {
+        PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+        PROMPT_MODE_P22_NATIVE_D5D6,
+        PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+    }
+    if prompt_mode in combined_modes and probe.dimension == "state_fidelity":
         scaffold = """Use this internal observation scaffold:
 - Inspect the entire sampled video and maintain a simple 3D scene while watching it.
 - For this D4 visible-state probe, focus on the prompt-critical primary subject and any object or region that causally determines the requested result.
@@ -1013,40 +567,7 @@ def build_runtime_v2_probe_prompt(
 - Track the prompt-critical subject, target, result object, and expected region when they determine the required action or state.
 - For negative probes, answer Yes only when visible state counterevidence is actually shown.
 - Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_P7_D3_RELATION_SPLIT and probe.dimension == "spatial_fidelity":
-        scaffold = """Use this internal observation scaffold:
-- Inspect the entire sampled video and maintain a simple 3D scene while watching it.
-- For this D3 visible-spatial probe, focus on the prompt-critical subject, target, support surface, container, destination, and surrounding environment.
-- Use stable anchors to judge coarse world-space relation, contact, support, containment, placement, path, and whether a subject plausibly returns toward an expected region.
-- Do not mechanically subtract camera motion from object motion; use the evolving 3D scene and static anchors to decide what is happening.
-- Do not answer a strong Yes or strong No from ambiguous small motion, brief glimpses, or weak spatial cues.
-- For negative probes, answer Yes only when visible spatial counterevidence is actually shown.
-- Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_P6C_D5_RETURN_POSITION_REJECT_RELIEF and probe.dimension == "spatial_reasoning":
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- For this D5 spatial-continuity probe, compare the last judgeable before-hidden evidence with later judgeable evidence.
-- Track whether the same prompt-critical subject or target can be matched across the hidden interval.
-- Gate probes only judge whether later evidence is inspectable enough for a spatial judgment; they do not judge whether the video is good or whether the location is correct.
-- For return-position probes, judge plausible coarse world-region continuity relative to static anchors; do not require exact placement, identical framing, or complete trajectory visibility.
-- Visible or identifiable again is not enough by itself; later evidence should support spatial continuity in the expected world region.
-- Hidden interval or missing middle frames alone is not failure.
-- For negative probes, answer Yes only when visible spatial counterevidence is actually shown.
-- Judge the video evidence, not the text expectation."""
-    elif (
-        prompt_mode
-        in {
-            PROMPT_MODE_P6_D5_WORLD_REGION_CONTINUITY,
-            PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
-            PROMPT_MODE_P22_NATIVE_D5D6,
-            PROMPT_MODE_P25_D3D4_SLOT_PARSE,
-            PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
-            PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
-            PROMPT_MODE_QWEN36_35B_P9_SCORE,
-            PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE,
-        }
-        and probe.dimension == "spatial_reasoning"
-    ):
+    elif prompt_mode in combined_modes and probe.dimension == "spatial_reasoning":
         scaffold = """Use this internal observation scaffold:
 - Maintain a simple 3D world state while watching the sampled video.
 - For this D5 spatial-continuity probe, compare the last judgeable before-hidden evidence with later judgeable evidence.
@@ -1057,69 +578,6 @@ def build_runtime_v2_probe_prompt(
 - Hidden interval or missing middle frames alone is not failure.
 - For negative probes, answer Yes only when visible spatial counterevidence is actually shown.
 - Judge the video evidence, not the text expectation."""
-    elif (
-        prompt_mode
-        in {
-            PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
-            PROMPT_MODE_P11_SHARED_GATE_D6_STATE_CONTINUITY,
-            PROMPT_MODE_QWEN36_35B_SHARED_OOV_GATE,
-        }
-        and probe.dimension == "shared_oov_judgeability"
-    ):
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- For this shared OoV judgeability gate, decide only whether the prompt-critical evidence becomes judgeable, not whether it is correct.
-- Judgeable means the subject, target, action, result, or state can be identified well enough to compare coarse position and action/state.
-- Use before-hidden / after-return evidence; the hidden middle alone is not a failure.
-- Wrong position, wrong state, reset, freeze, or failed action is still applicable when visible and judgeable; that should be scored by D5/D6, not marked N/A.
-- Do not use a fixed visible-area percentage rule.
-- Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_P5_D5_RETURN_GATE_SOFT and probe.dimension == "spatial_reasoning":
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- For this D5 spatial-continuity probe, compare the last judgeable before-hidden evidence with later judgeable evidence.
-- Track whether the same prompt-critical subject or target can be matched across the hidden interval.
-- Gate probes only judge whether later evidence is inspectable enough for a spatial judgment; they do not judge whether the video is good.
-- For return-position probes, judge coarse expected-region continuity relative to static anchors, not exact pixel position or camera framing.
-- Visible or identifiable again is not enough by itself; plausible expected-region continuity without visible counterevidence can support Yes.
-- Hidden interval or missing middle frames alone is not failure.
-- For negative probes, answer Yes only when visible spatial counterevidence is actually shown.
-- Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_P4_D5_LOCATION_STRICT and probe.dimension == "spatial_reasoning":
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- For this D5 spatial-continuity probe, compare the last judgeable before-hidden evidence with later judgeable evidence.
-- Track whether the same prompt-critical subject or target can be matched across the hidden interval.
-- Visible or identifiable again is not enough for a positive return-position answer; judge whether it is in the prompt-required world position or expected region.
-- Hidden interval or missing middle frames alone is not failure.
-- For negative probes, answer Yes only when visible spatial counterevidence is actually shown.
-- Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_P2_EVIDENCE_BOUNDARY:
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- Use static anchors to judge world-space motion; do not use a fixed camera-motion subtraction rule.
-- Track only prompt-critical subjects, targets, actions, results, and expected regions.
-- Answer Yes only for clear video evidence that supports this exact probe.
-- Answer No when evidence is missing, too ambiguous, too brief, or contradicted by visible evidence.
-- For hidden intervals, compare last judgeable evidence with later judgeable evidence; hidden time can imply continuation, but absence, reset, freeze, or impossible jumps are counterevidence.
-- Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_P3_ANCHOR_IDENTITY_LIGHT:
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- Use static anchors to separate camera/view change from the evolving world state, but do not apply a fixed camera-motion subtraction rule.
-- Track prompt-critical subjects, targets, actions, results, and expected regions across time.
-- Prefer weak-evidence restraint on D3 when anchors conflict, motion is brief, or the spatial cue is ambiguous.
-- For D5 and D6, compare the last judgeable evidence with later judgeable evidence; hidden interval or missing middle frames alone is not failure.
-- For negative probes, answer Yes only when visible counterevidence is actually shown.
-- Judge the video evidence, not the text expectation."""
-    elif prompt_mode == PROMPT_MODE_V3_MINIMAL_WORLD_STATE:
-        scaffold = """Use this internal observation scaffold:
-- Maintain a simple 3D world state while watching the sampled video.
-- Use static anchors to separate camera/view change from the evolving world state.
-- Track prompt-critical subjects, targets, actions, results, and expected regions through time.
-- For hidden or out-of-view intervals, infer plausible world continuation and judge the later evidence when it returns.
-- Answer Yes only when video evidence supports the probe; answer No when required evidence is missing or clearly contradicted.
-- Judge the video evidence, not the caption-like expectation."""
     else:
         scaffold = """Use this internal observation scaffold:
 - Maintain a simple mental 3D scene.

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -387,523 +388,64 @@ def test_qwen35_camera_motion_context_only_renders_camera_block() -> None:
     assert "This must not be injected." not in prompt
 
 
-def test_qwen3vl_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
+def test_qwen3vl_active_gate_schemas_build_and_parse() -> None:
+    subject_prompt = qwen3vl_mod.build_judgeability_prompt(
         world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_GUARDED_CLEAN,
+        video_id="vid-subj",
+        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_SUBJECT,
     )
+    assert "strict video judgeability auditor" in subject_prompt
+    parsed_subject = qwen3vl_mod.parse_judgeability_response(
+        json.dumps(
+            {
+                "video_id": "vid-subj",
+                "main_subject": "red cube",
+                "per_second": [
+                    {"sec": 0, "judgeable": "yes", "note": "visible before occlusion"},
+                    {"sec": 1, "judgeable": "no", "note": "behind wall"},
+                    {"sec": 2, "judgeable": "yes", "note": "reappeared on right"},
+                ],
+            }
+        ),
+        expected_video_id="vid-subj",
+        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_SUBJECT,
+    )
+    assert parsed_subject["schema_version"] == qwen3vl_mod.SUBJECT_SCHEMA_VERSION
+    assert parsed_subject["evidence_shared_oov_applicable"] is True
+    assert parsed_subject["evidence_d5_applicable"] is True
+    assert parsed_subject["evidence_d6_applicable"] is True
 
-    assert "strict D5/D6 judgeability gate auditor" in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-
-
-def test_qwen3vl_direct3q_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
+    guarded_prompt = qwen3vl_mod.build_judgeability_prompt(
         world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_SHARED_DIRECT3Q_CLEAN,
+        video_id="vid-guard",
+        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_GUARDED,
     )
-
-    assert "Your job is to answer three judgeability questions" in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "scoreable" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-    assert '"d5_applicable"' not in prompt
-    assert '"d6_applicable"' not in prompt
-
-
-def test_qwen3vl_visible_bool_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_VISIBLE_BOOL_CLEAN,
+    assert "strict D5/D6 judgeability gate auditor" in guarded_prompt
+    parsed_guarded = qwen3vl_mod.parse_judgeability_response(
+        json.dumps(
+            {
+                "video_id": "vid-guard",
+                "prompt_critical_evidence": "red cube",
+                "expected_motion_or_state": "moves behind wall and returns",
+                "static_anchors": ["wall"],
+                "before_hidden_evidence": "cube visible left",
+                "after_return_evidence": "cube visible in wrong corner",
+                "per_second": [
+                    {"sec": 0, "judgeable": "yes", "note": "visible"},
+                    {"sec": 1, "judgeable": "no", "note": "hidden"},
+                    {"sec": 2, "judgeable": "yes", "note": "wrong corner but judgeable"},
+                ],
+                "gate": {"d5_applicable": True, "d6_applicable": True, "na_reason": None},
+                "audit": {"wrong_but_judgeable": True, "anchor_available": True, "after_return_available": True},
+            }
+        ),
+        expected_video_id="vid-guard",
+        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_GUARDED,
     )
-
-    assert "has_visible_after_gap_evidence_to_judge" in prompt
-    assert "The text request itself is not evidence" in prompt
-    assert "Do not answer true for ordinary continuously visible evidence with no such gap." in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-    assert '"d5_applicable"' not in prompt
-    assert '"d6_applicable"' not in prompt
-
-
-def test_qwen3vl_oov_gap_bool_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_BOOL_CLEAN,
-    )
-
-    assert "has_oov_gap_with_later_comparable_evidence" in prompt
-    assert "The text request itself is not evidence" in prompt
-    assert "Later clear visibility is necessary for a true answer, but it is not sufficient." in prompt
-    assert "remains continuously visible enough to judge" in prompt
-    assert "ordinary action progress" in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert "has_visible_after_gap_evidence_to_judge" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-    assert '"d5_applicable"' not in prompt
-    assert '"d6_applicable"' not in prompt
-
-
-def test_qwen3vl_oov_gap_scan_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_SCAN_CLEAN,
-    )
-
-    assert "Fill visibility_scan before deciding final_oov_applicable" in prompt
-    assert "Return exactly 8 checkpoints" in prompt
-    assert "Wrong, absent, replaced, reset, failed, or changed later evidence is still judgeable" in prompt
-    assert "Do not answer false merely because the evidence is visible in the first and last parts" in prompt
-    assert '"visibility_scan"' in prompt
-    assert '"judgeable": "<yes|no|unclear>"' in prompt
-    assert "The text request itself is not evidence" in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert "has_visible_after_gap_evidence_to_judge" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-    assert '"d5_applicable"' not in prompt
-    assert '"d6_applicable"' not in prompt
-
-
-def test_qwen3vl_oov_gap_triplet_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_TRIPLET_CLEAN,
-    )
-
-    assert "Fill the three evidence fields before deciding final_oov_applicable" in prompt
-    assert '"before_reference"' in prompt
-    assert '"middle_unjudgeable_gap"' in prompt
-    assert '"later_comparable_evidence"' in prompt
-    assert '"present": "<yes|no|unclear>"' in prompt
-    assert "Do not require the exact same subject or object to reappear" in prompt
-    assert "The text request itself is not evidence" in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert "has_visible_after_gap_evidence_to_judge" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-    assert '"d5_applicable"' not in prompt
-    assert '"d6_applicable"' not in prompt
-
-
-def test_qwen3vl_oov_gap_triplet_sheet_clean_gate_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A red cube moves behind a wall and returns.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_TRIPLET_SHEET_CLEAN,
-    )
-
-    assert "contact sheet made from one video" in prompt
-    assert "Refer to those labels in your notes" in prompt
-    assert "Judge only the frames that are shown" in prompt
-    assert "three-part visual pattern" in prompt
-    assert "scan the sampled frames one by one" in prompt
-    assert "Do not summarize a range as visible" in prompt
-    assert '"critical_evidence"' in prompt
-    assert '"frame_visibility"' in prompt
-    assert '"early_reference"' in prompt
-    assert '"middle_cannot_follow"' in prompt
-    assert '"later_comparison"' in prompt
-    assert '"final_applicable": <true|false>' in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "metadata" not in prompt
-    assert "filename" not in prompt
-    assert "filenames" not in prompt
-    assert "model" not in prompt
-    assert "dataset" not in prompt
-    assert "outside knowledge" not in prompt
-    assert "OOV" not in prompt
-    assert "OoV" not in prompt
-    assert "final_oov_applicable" not in prompt
-    assert "unreasonable" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert "has_visible_after_gap_evidence_to_judge" not in prompt
-    assert video_id not in prompt
-    assert "model_a" not in prompt
-    assert "source_x" not in prompt
-    assert "family_y" not in prompt
-    assert "variant_z" not in prompt
-    assert "D6_PROBE" not in prompt
-    assert '"d5_applicable"' not in prompt
-    assert '"d6_applicable"' not in prompt
-
-
-def test_qwen3vl_oov_gap_triplet_sheet_clean_parser_allows_missing_later_type() -> None:
-    payload = {
-        "critical_evidence": "cup and table area",
-        "early_reference": {
-            "present": "yes",
-            "note": "idx0 shows the cup on the table",
-        },
-        "frame_visibility": [
-            {"label": "idx0", "visible": "yes", "note": "cup is visible"},
-            {"label": "idx8", "visible": "bad-value", "note": "cup is hidden"},
-        ],
-        "middle_cannot_follow": {
-            "present": "no",
-            "note": "idx8 shows the cup remains visible",
-        },
-        "later_comparison": {
-            "present": "no",
-            "note": "idx16 is unrelated",
-        },
-        "final_applicable": False,
-        "brief_reason": "The cup remains visible, so the three-part pattern is absent.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_TRIPLET_SHEET_CLEAN,
-    )
-
-    assert parsed["later_comparable_evidence"]["type"] == "unclear"
-    assert parsed["frame_visibility"] == [
-        {"label": "idx0", "visible": "yes", "note": "cup is visible"},
-        {"label": "idx8", "visible": "unclear", "note": "cup is hidden"},
-    ]
-    assert parsed["oov_applicable"] is False
-
-
-def test_qwen3vl_oov_gap_per_second_audit_bool_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A waiter places a tray on a table.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_AUDIT_BOOL_CLEAN,
-    )
-
-    assert "For each whole second you can inspect" in prompt
-    assert "The per_second list is audit evidence" in prompt
-    assert "A support surface counts only when it helps judge the requested thing" in prompt
-    assert '"per_second"' in prompt
-    assert '"status"' in prompt
-    assert '"can_judge_after_gap"' in prompt
-    assert "clear_relevant_evidence" not in prompt
-    assert '"early_reference"' not in prompt
-    assert '"middle_cannot_follow"' not in prompt
-    assert '"later_comparison"' not in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "metadata" not in prompt
-    assert "filename" not in prompt
-    assert "filenames" not in prompt
-    assert "model" not in prompt
-    assert "dataset" not in prompt
-    assert "outside knowledge" not in prompt
-    assert "OOV" not in prompt
-    assert "OoV" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert video_id not in prompt
-
-
-def test_qwen3vl_oov_gap_per_second_audit_bool_keeps_raw_gate_when_scan_conflicts() -> None:
-    payload = {
-        "look_for": "waiter tray and table",
-        "per_second": [
-            {"sec": 0, "status": "visible", "note": "waiter and tray visible"},
-            {"sec": 1, "status": "visible", "note": "waiter still visible"},
-            {"sec": 2, "status": "visible", "note": "table area visible"},
-        ],
-        "can_judge_after_gap": True,
-        "reason_code": "yes_after_gap",
-        "brief_reason": "The video has enough visible evidence after the interruption.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_AUDIT_BOOL_CLEAN,
-    )
-
-    assert parsed["schema_version"] == qwen3vl_mod.OOV_GAP_PER_SECOND_AUDIT_BOOL_CLEAN_SCHEMA_VERSION
-    assert parsed["look_for"] == "waiter tray and table"
-    assert parsed["can_judge_after_gap"] is True
-    assert parsed["oov_applicable"] is True
-    assert parsed["scan_derived_pattern"] is False
-    assert parsed["gate_consistent_with_scan"] is False
-    assert "raw_true_scan_no_unjudgeable" in parsed["conflict_types"]
-
-
-def test_qwen3vl_oov_gap_per_second_audit_bool_flags_scan_positive_without_override() -> None:
-    payload = {
-        "look_for": "person chair and sitting result",
-        "per_second": [
-            {"sec": 0, "status": "visible", "note": "person and chair visible"},
-            {"sec": 1, "status": "not_visible", "note": "person outside the frame"},
-            {"sec": 2, "status": "visible", "note": "chair area visible again"},
-        ],
-        "can_judge_after_gap": False,
-        "reason_code": "no_later_visible",
-        "brief_reason": "The later evidence is not enough to judge the request.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_AUDIT_BOOL_CLEAN,
-    )
-
-    assert parsed["oov_applicable"] is False
-    assert parsed["scan_derived_pattern"] is True
-    assert parsed["gate_consistent_with_scan"] is False
-    assert "raw_false_scan_has_clear_unjudgeable_clear" in parsed["conflict_types"]
-
-
-def test_qwen3vl_oov_gap_per_second_strict_collapse_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A worker places a cardboard box onto a pallet.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_STRICT_COLLAPSE,
-    )
-
-    assert "For each whole second you can inspect" in prompt
-    assert "background target area alone" in prompt
-    assert "scene collapse" in prompt
-    assert '"per_second"' in prompt
-    assert '"status"' in prompt
-    assert '"can_judge_after_gap"' not in prompt
-    assert '"reason_code"' not in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "metadata" not in prompt
-    assert "filename" not in prompt
-    assert "filenames" not in prompt
-    assert "model" not in prompt
-    assert "dataset" not in prompt
-    assert "outside knowledge" not in prompt
-    assert "OOV" not in prompt
-    assert "OoV" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert video_id not in prompt
-
-
-def test_qwen3vl_oov_gap_per_second_strict_collapse_derives_visible_after_gap() -> None:
-    payload = {
-        "look_for": "worker and cardboard box being placed on pallet",
-        "per_second": [
-            {"sec": 0, "status": "visible", "note": "worker and box are visible"},
-            {"sec": 1, "status": "not_visible", "note": "worker and box move outside the frame"},
-            {"sec": 2, "status": "visible", "note": "box is visible on the pallet"},
-        ],
-        "brief_reason": "The requested object is visible, absent, then visible again.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_STRICT_COLLAPSE,
-    )
-
-    assert parsed["schema_version"] == qwen3vl_mod.OOV_GAP_PER_SECOND_STRICT_COLLAPSE_SCHEMA_VERSION
-    assert parsed["oov_applicable"] is True
-    assert parsed["reason_code"] == "visible_after_gap"
-    assert parsed["scan_derived_positive_reason"] == "visible_after_gap"
-    assert parsed["oov_interval"] == {
-        "start_sec": 1.0,
-        "end_sec": 2.0,
-        "status": "present",
-        "problem_status": "not_visible",
-    }
-    assert parsed["collapse_present"] is False
-
-
-def test_qwen3vl_oov_gap_per_second_strict_collapse_derives_collapse_after_visible() -> None:
-    payload = {
-        "look_for": "adult sitting on chair",
-        "per_second": [
-            {"sec": 0, "status": "visible", "note": "adult and chair are visible"},
-            {"sec": 1, "status": "collapsed", "note": "body and chair smear into a warped artifact"},
-            {"sec": 2, "status": "collapsed", "note": "scene remains melted and unjudgeable"},
-        ],
-        "brief_reason": "The visible requested scene breaks into severe generated artifacts.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_STRICT_COLLAPSE,
-    )
-
-    assert parsed["oov_applicable"] is True
-    assert parsed["reason_code"] == "collapse_after_visible"
-    assert parsed["scan_derived_positive_reason"] == "collapse_after_visible"
-    assert parsed["collapse_present"] is True
-    assert parsed["oov_interval"] == {
-        "start_sec": 1.0,
-        "end_sec": 3.0,
-        "status": "present",
-        "problem_status": "collapsed",
-    }
-
-
-def test_qwen3vl_oov_gap_per_second_strict_collapse_requires_later_visible_after_gap() -> None:
-    payload = {
-        "look_for": "waiter placing tray on table",
-        "per_second": [
-            {"sec": 0, "status": "visible", "note": "waiter and tray are visible"},
-            {"sec": 1, "status": "not_visible", "note": "waiter and tray leave the frame"},
-            {"sec": 2, "status": "not_visible", "note": "only an empty table is visible"},
-        ],
-        "brief_reason": "The requested thing does not become visible again after the gap.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_GAP_PER_SECOND_STRICT_COLLAPSE,
-    )
-
-    assert parsed["oov_applicable"] is False
-    assert parsed["reason_code"] == "no_later_visible"
-    assert parsed["scan_derived_na_reason"] == "no_later_visible"
-    assert parsed["collapse_present"] is False
-    assert parsed["oov_interval"] == {"start_sec": None, "end_sec": None, "status": "unclear"}
-
-
-def test_qwen3vl_oov_subject_result_integrity_prompt_omits_vlm_facing_identifiers() -> None:
-    video_id = "model_a__source_x__family_y__variant_z__D6_PROBE"
-    prompt = qwen3vl_mod.build_judgeability_prompt(
-        world_state_prompt="A worker places a cardboard box onto a pallet.",
-        video_id=video_id,
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_SUBJECT_RESULT_INTEGRITY,
-    )
-
-    assert "Your job is to describe what can actually be judged from the video" in prompt
-    assert "subject_per_second" in prompt
-    assert "result_evidence_per_second" in prompt
-    assert "scene_integrity_per_second" in prompt
-    assert '"judgeable": "<yes|no|unclear>"' in prompt
-    assert '"status": "<coherent|broken|unclear>"' in prompt
-    assert "Do not decide whether the requested outcome is correct" in prompt
-    assert "Video id:" not in prompt
-    assert "video_id" not in prompt
-    assert "metadata" not in prompt
-    assert "filename" not in prompt
-    assert "filenames" not in prompt
-    assert "model" not in prompt
-    assert "dataset" not in prompt
-    assert "outside knowledge" not in prompt
-    assert "OOV" not in prompt
-    assert "OoV" not in prompt
-    assert "D5" not in prompt
-    assert "D6" not in prompt
-    assert "WRBench" not in prompt
-    assert "benchmark" not in prompt
-    assert video_id not in prompt
-
-
-def test_qwen3vl_oov_subject_result_integrity_derives_result_after_subject_gap() -> None:
-    payload = {
-        "main_subject": "person carrying a box",
-        "result_evidence": "box on pallet",
-        "subject_per_second": [
-            {"sec": 0, "judgeable": "yes", "note": "person and box are visible"},
-            {"sec": 1, "judgeable": "no", "note": "person leaves frame"},
-            {"sec": 2, "judgeable": "no", "note": "person remains outside the frame"},
-        ],
-        "result_evidence_per_second": [
-            {"sec": 0, "judgeable": "yes", "note": "box starts in the person's hands"},
-            {"sec": 1, "judgeable": "no", "note": "box is not visible"},
-            {"sec": 2, "judgeable": "yes", "note": "box is clearly visible on the pallet"},
-        ],
-        "scene_integrity_per_second": [
-            {"sec": 0, "status": "coherent", "note": "scene is stable"},
-            {"sec": 1, "status": "coherent", "note": "scene remains stable"},
-            {"sec": 2, "status": "coherent", "note": "scene remains stable"},
-        ],
-        "brief_reason": "The person disappears and the resulting box placement is visible later.",
-    }
-
-    parsed = qwen3vl_mod.parse_judgeability_response(
-        json.dumps(payload),
-        expected_video_id="vid-a",
-        prompt_schema=qwen3vl_mod.PROMPT_SCHEMA_OOV_SUBJECT_RESULT_INTEGRITY,
-    )
-
-    assert parsed["schema_version"] == qwen3vl_mod.OOV_SUBJECT_RESULT_INTEGRITY_SCHEMA_VERSION
-    assert parsed["oov_applicable"] is True
-    assert parsed["reason_code"] == "result_evidence_after_subject_gap"
-    assert parsed["shared_oov_applicable"] is True
-    assert parsed["evidence_d5_applicable"] is True
-    assert parsed["evidence_d6_applicable"] is True
+    assert parsed_guarded["schema_version"] == qwen3vl_mod.GUARDED_SCHEMA_VERSION
+    assert parsed_guarded["evidence_shared_oov_applicable"] is True
+    assert parsed_guarded["evidence_d5_applicable"] is True
+    assert parsed_guarded["evidence_d6_applicable"] is True
 
 
 def test_qwen35_manifest_video_preflight_fails_on_missing_video(tmp_path: Path) -> None:
@@ -1029,7 +571,8 @@ def test_evidence_export_standalone_required_inputs(tmp_path: Path) -> None:
     assert masked[0]["vlm_state_reasoning"] == 0.5
 
 
-def test_evidence_export_manifest_no_oov_overrides_evidence_gate(tmp_path: Path) -> None:
+@pytest.mark.parametrize("disabled", [False, True])
+def test_evidence_export_uses_video_gate_unless_disabled(tmp_path: Path, disabled: bool) -> None:
     manifest = [
         {
             "video_id": "vid-no-oov",
@@ -1039,6 +582,8 @@ def test_evidence_export_manifest_no_oov_overrides_evidence_gate(tmp_path: Path)
             "oov_gap": "none",
         }
     ]
+    if disabled:
+        manifest[0]["reobservation_enabled"] = False
     scores = [
         {
             "video_id": "vid-no-oov",
@@ -1096,6 +641,11 @@ def test_evidence_export_manifest_no_oov_overrides_evidence_gate(tmp_path: Path)
         )
     )
     row = masked[0]
+    if not disabled:
+        assert row["runtime_v2_evidence_shared_oov_applicable"] is True
+        assert row["vlm_spatial_reasoning"] == 0.6
+        assert row["vlm_state_reasoning"] == 0.5
+        return
     assert row["runtime_v2_evidence_shared_oov_applicable"] is False
     assert row["runtime_v2_evidence_shared_oov_na_reason"] == "no_oov"
     assert row["runtime_v2_evidence_d5_applicable"] is False
@@ -1116,7 +666,27 @@ def test_metric_scoring_python_files_do_not_import_workplace() -> None:
     assert offenders == []
 
 
-def test_score_runtime_v2_shell_preflight_accepts_manifest_aliases(tmp_path: Path) -> None:
+@pytest.mark.parametrize(
+    ("legacy_entry", "overrides", "bad_setting"),
+    [
+        (False, {}, None),
+        (True, {}, None),
+        (False, {"PROMPT_MODE": qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED}, "PROMPT_MODE"),
+        (False, {"TASK_CONTEXT_MODE": "all_manifest_metadata"}, "TASK_CONTEXT_MODE"),
+        (False, {"QWEN3VL_BINARY_PROMPT_SCHEMA": qwen3vl_mod.PROMPT_SCHEMA_GUARDED}, "QWEN3VL_BINARY_PROMPT_SCHEMA"),
+        (False, {"QWEN3VL_RESCUE_PROMPT_SCHEMA": "incorrect"}, "QWEN3VL_RESCUE_PROMPT_SCHEMA"),
+        (
+            False,
+            {"SCORER_PROFILE": "ablation_manifest_metadata",
+             "PROMPT_MODE": qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+             "TASK_CONTEXT_MODE": "all_manifest_metadata"},
+            None,
+        ),
+    ],
+)
+def test_score_runtime_v2_shell_preflight(
+    tmp_path: Path, legacy_entry: bool, overrides: dict[str, str], bad_setting: str | None,
+) -> None:
     video = tmp_path / "video.mp4"
     video.write_bytes(b"not-a-real-video")
     manifest_path = tmp_path / "manifest.json"
@@ -1132,13 +702,16 @@ def test_score_runtime_v2_shell_preflight_accepts_manifest_aliases(tmp_path: Pat
         ],
     )
 
-    script = Path(__file__).resolve().parents[1] / "scripts" / "eval" / "score_runtime_v2_d3d6.sh"
+    if legacy_entry:
+        script = Path(__file__).resolve().parents[1] / "scripts/eval/score_runtime_v2_d3d6.sh"
+    else:
+        script = Path(runtime_common.__file__).resolve().parents[1] / "score_runtime_v2_d3d6.sh"
     env = {
         **os.environ,
         "FORCE_QWENVL_VIDEO_READER": "decord",
         "WORLD_STATE_VIDEO_BACKEND": "decord",
-        "PY_SCORER": "python",
-        "PY_HELPER": "python",
+        "PY_SCORER": sys.executable,
+        "PY_HELPER": sys.executable,
         "MANIFEST": str(manifest_path),
         "OUT_DIR": str(out_dir),
         "QWEN35_MODEL": str(tmp_path),
@@ -1154,59 +727,69 @@ def test_score_runtime_v2_shell_preflight_accepts_manifest_aliases(tmp_path: Pat
         "PROGRESS_EVERY": "1",
         "SKIP_EXISTING": "0",
         **d3d6_shell_required_env(),
+        **overrides,
     }
     result = subprocess.run(
         ["bash", str(script), "preflight"],
-        cwd=Path(__file__).resolve().parents[1],
+        cwd=tmp_path,
         env=env,
-        check=True,
         text=True,
         capture_output=True,
     )
 
-    assert "[preflight] manifest_records=1" in result.stdout
+    if bad_setting is None:
+        assert result.returncode == 0, result.stderr
+        assert "[preflight] manifest_records=1" in result.stdout
+    else:
+        assert result.returncode == 2
+        assert f"wrbench_default requires {bad_setting}=" in result.stderr
+        assert not out_dir.exists()
 
 
 def test_runtime_example_matches_wrbench_default_d3d6_profile() -> None:
-    from wrbench.eval.scoring import run_qwen35_p25_d3d4_slot_parse_overlay as p25
+    from wrbench.eval.scoring import prompts_v2_probe
 
     runtime_example = Path(__file__).resolve().parents[1] / "wrbench.runtime.example.json"
     payload = json.loads(runtime_example.read_text(encoding="utf-8"))
     env = payload["eval"]["scorers"]["env"]
 
-    assert env["PROMPT_MODE"] == p25.P25_PROMPT_MODE
+    assert env["PROMPT_MODE"] == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
     assert env["TASK_CONTEXT_MODE"] == "none"
     assert int(env["QWEN3VL_MAX_NEW_TOKENS"]) == qwen3vl_mod.DEFAULT_MAX_NEW_TOKENS
 
 
-def test_current_qwen35_profile_is_declared_without_overlay_install() -> None:
+def test_current_qwen35_profile_is_declared_and_guarded_without_overlay() -> None:
     from wrbench.eval.scoring import prompts_v2_probe
-    from wrbench.eval.scoring import run_qwen35_p22_overlay as p22
-    from wrbench.eval.scoring import run_qwen35_p25_d3d4_slot_parse_overlay as p25
 
-    assert p22.P22_PROMPT_MODE in prompts_v2_probe.SUPPORTED_PROMPT_MODES
-    assert p25.P25_PROMPT_MODE in prompts_v2_probe.SUPPORTED_PROMPT_MODES
-    assert prompts_v2_probe.validate_prompt_mode(p25.P25_PROMPT_MODE) == p25.P25_PROMPT_MODE
+    assert prompts_v2_probe.PROMPT_MODE_P22_NATIVE_D5D6 in prompts_v2_probe.SUPPORTED_PROMPT_MODES
+    assert prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE in prompts_v2_probe.SUPPORTED_PROMPT_MODES
+    assert prompts_v2_probe.validate_prompt_mode(prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE) == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
 
+    with pytest.raises(SystemExit):
+        qwen35_mod.parse_args(
+            [
+                "--experiment-id", "p25_guard",
+                "--manifest-path", "/tmp/m.json",
+                "--output-dir", "/tmp/o",
+                "--model-path", DUMMY_QWEN35_MODEL,
+                *qwen35_required_args(
+                    prompt_mode=prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+                    task_context_mode="all_manifest_metadata",
+                ),
+            ]
+        )
 
-def test_score_runtime_v2_shell_requires_explicit_profile_configuration() -> None:
-    script = Path(__file__).resolve().parents[1] / "scripts" / "eval" / "score_runtime_v2_d3d6.sh"
-    text = script.read_text(encoding="utf-8")
-
-    assert 'SCORER_PROFILE="$(require_env SCORER_PROFILE)"' in text
-    assert 'RUN_TAG="$(require_env RUN_TAG)"' in text
-    assert 'PROMPT_MODE="$(require_env PROMPT_MODE)"' in text
-    assert 'TASK_CONTEXT_MODE="$(require_env TASK_CONTEXT_MODE)"' in text
-    assert "wrbench_default|current_benchmark_p25_p22_e14)" not in text
-    assert "wrbench_default)" in text
-    assert "run_qwen35_p25_d3d4_slot_parse_overlay.py" in text
-
-
-def test_score_runtime_v2_shell_does_not_inject_legacy_p9_defaults() -> None:
-    script = Path(__file__).resolve().parents[1] / "scripts" / "eval" / "score_runtime_v2_d3d6.sh"
-    text = script.read_text(encoding="utf-8")
-
-    assert "legacy_p9_all_manifest_metadata|ablation_manifest_metadata)" not in text
-    assert "ablation_manifest_metadata)" in text
-    assert "runtime_v2_probe_logprob_p9_d4_p8_d5_p6_combined" not in text
-    assert 'TASK_CONTEXT_MODE="${TASK_CONTEXT_MODE:-all_manifest_metadata}"' not in text
+    with pytest.raises(SystemExit):
+        qwen35_mod.parse_args(
+            [
+                "--experiment-id", "p25_guard_ev",
+                "--manifest-path", "/tmp/m.json",
+                "--output-dir", "/tmp/o",
+                "--model-path", DUMMY_QWEN35_MODEL,
+                "--evidence-jsonl", "/tmp/ev.jsonl",
+                *qwen35_required_args(
+                    prompt_mode=prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+                    task_context_mode="none",
+                ),
+            ]
+        )

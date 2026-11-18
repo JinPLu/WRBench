@@ -85,10 +85,10 @@
         "d1_vggt_num_shards": "1",
         "d2_device": "cuda:0",
         "d2_sample_policy": "time_fps",
-        "d2_sample_fps": "2.0",
+        "d2_sample_fps": "3.0",
         "d2_min_frames": "4",
-        "d2_max_frames": "16",
-        "d2_batch_size": "8"
+        "d2_max_frames": "24",
+        "d2_batch_size": "4"
       },
       "env": {
         "FORCE_QWENVL_VIDEO_READER": "1",

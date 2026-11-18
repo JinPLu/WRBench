@@ -42,6 +42,7 @@ version = { attr = "wrbench.__version__" }
 wrbench = [
   "models/*.json",
   "prompts/templates/*.txt",
+  "eval/score_runtime_v2_d3d6.sh",
   "eval/contract/*.json",
   "eval/contract/*.md",
   "data/**/*",

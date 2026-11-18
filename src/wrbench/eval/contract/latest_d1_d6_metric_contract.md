@@ -16,8 +16,10 @@
 
 ## D1 Reporting Exclusions
 
-- D1-CamPrec excludes `100` `hunyuan_game_craft` `static` rows from the reporting denominator (`unsupported_static_hold_upstream_gamecraft`); raw row scoring remains auditable.
+- D1-CamPrec excludes `100` `hunyuan_game_craft` `static` rows from the reporting denominator (`absent_from_frozen_paper_static_scope`); raw row scoring remains auditable.
 
 ## Method Notes
 
+- Frozen paper D1-CamPrec uses requested camera profiles as targets. The evaluator also supports explicit validated targets and a separate `D1_camera_pose_nominal` diagnostic for missing targets in custom runs.
+- D1-CamAlign v2-lite common-yaw includes local and API yaw rows. API static-hold is reported separately as `D1_camalign_static_hold`.
 - D2 uses the fixed full-FoV DINOv2 v2 visual-integrity score: `d2_selected_visual_integrity_score = d2_lg_v2_candidate_e = min(cls_first_last_cosine, local_patch_token_low_p20)`. Preprocessing is `full_fov_resize_pad_no_center_crop`; sampling is `time_fps_3_max24`. The legacy display label `D2_dinov2_temporal_consistency` is forbidden as a fallback.

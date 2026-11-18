@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- **D2 visual integrity ([#10](https://github.com/JinPLu/WRBench/issues/10))**: use full-field DINOv2 and the paper's 3 fps / 24-frame preset. Verify the video checksum when the manifest provides one.
+- **D1 camera scoring ([#9](https://github.com/JinPLu/WRBench/issues/9))**: use CamAlign v2-lite, report common yaw across local and API models, and keep API static hold and nominal target diagnostics separate. Record segment provenance with poses so published HyDRA clips work without camera sidecars.
+- Replay paper CamPrec with `--target-mode requested_profile`, using the requested yaw or static target from the video manifest.
+- Resolve relative inputs for all stages of `eval run --video-root`. Validate the paper scorer settings and include the D3–D6 runner in the wheel.
+
+### Changed
+
+- Select pose, D2, and VLM backends in `eval.backends`. Custom backends use the same manifest and output contracts as built-in backends.
+- Share evaluation I/O and pose math, consolidate the result table builder, and remove obsolete scoring wrappers.
+
 ## 0.1.3 — 2026-07-13
 
 ### Changed

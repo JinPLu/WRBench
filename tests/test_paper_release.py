@@ -323,7 +323,7 @@ def test_release_index_records_live_cross_repository_publication() -> None:
         "repository": "WRBench/wrbench-natural25",
     }
     assert index["hugging_face"]["videos"] == {
-        "current_main_commit": "a8e3d38b3c588a6f5368bfb42bfcf7d9a7dddf89",
+        "current_main_commit": "6257b7e665cdd4ff89af49dcee07e7524f154bfd",
         "frozen_attestation": {
             "commit": "b37c39b4b75c8a4420ba6131cb599089192ce443",
             "immutable_tag": "paper-main-20260608-repro-v1",
@@ -354,6 +354,15 @@ def test_release_index_records_live_cross_repository_publication() -> None:
         "rolling_per_video_score_correction": {
             "fields": ["D5_returned_spatial", "D6_returned_state"],
             "rows": 2073,
+        },
+        "rolling_static_camprec_backfill": {
+            "commit": "6257b7e665cdd4ff89af49dcee07e7524f154bfd",
+            "field": "D1_CamPrec",
+            "index_jsonl_sha256": "e48433d81972da01cc26f3d486be966870a077c87135a1bc7976a24b9c13c877",
+            "rows": 1100,
+            "passes": 1084,
+            "paper_camprec_rows": 7500,
+            "paper_camprec_mean": 0.7021636320348326,
         },
         "rolling_model_score_sync": {
             "aggregate_results_commit": "30d2245a3d6a7043b7f369cb6666ce3d24aa017e",

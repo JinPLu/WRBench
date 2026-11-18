@@ -19,19 +19,18 @@ ROOT = Path(__file__).resolve().parents[3]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-try:
-    from wrbench.eval.d1.geometry import safe_video_id
-    from wrbench.eval.d1.hydra_segments import resolve_eval_video_for_row
-    from wrbench.eval.d1.run_vggt_omega_pose import (
-        _load_state_dict,
-        extract_frames,
-        safe_scene_name,
-        write_pose_outputs,
-    )
-except ImportError:  # pragma: no cover
-    from .geometry import safe_video_id
-    from .hydra_segments import resolve_eval_video_for_row
-    from .run_vggt_omega_pose import _load_state_dict, extract_frames, safe_scene_name, write_pose_outputs
+from wrbench.eval._io import read_records, safe_video_id, write_json, write_jsonl
+from wrbench.eval.d1.hydra_segments import (
+    read_pose_segment,
+    resolve_eval_video_for_row,
+    save_pose_segment,
+)
+from wrbench.eval.d1.run_vggt_omega_pose import (
+    _load_state_dict,
+    extract_frames,
+    safe_scene_name,
+    write_pose_outputs,
+)
 
 
 class InprocessVGGTOmegaRunner:
@@ -74,20 +73,12 @@ class InprocessVGGTOmegaRunner:
         )
 
 
-def _read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with path.open(encoding="utf-8") as handle:
-        for raw in handle:
-            raw = raw.strip()
-            if raw:
-                rows.append(json.loads(raw))
-    return rows
-
-
 def _write_jsonl(path: Path, rows: Iterable[dict[str, Any]], *, append: bool = False) -> None:
+    if not append:
+        write_jsonl(rows, path, sort_keys=True)
+        return
     path.parent.mkdir(parents=True, exist_ok=True)
-    mode = "a" if append else "w"
-    with path.open(mode, encoding="utf-8") as handle:
+    with path.open("a", encoding="utf-8") as handle:
         for row in rows:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
@@ -95,7 +86,7 @@ def _write_jsonl(path: Path, rows: Iterable[dict[str, Any]], *, append: bool = F
 def _eligible_ids(audit_jsonl: Path | None) -> set[str] | None:
     if audit_jsonl is None:
         return None
-    rows = _read_jsonl(audit_jsonl)
+    rows = read_records(audit_jsonl)
     return {str(row.get("video_id")) for row in rows if row.get("status") == "ok" and row.get("video_id")}
 
 
@@ -144,7 +135,7 @@ def _pose_ok(path: Path, *, expected_frames: int | None = None) -> bool:
 
 
 def run_batch(args: argparse.Namespace) -> dict[str, Any]:
-    candidates = _read_jsonl(args.input_jsonl)
+    candidates = read_records(args.input_jsonl)
     rows = select_rows(
         candidates,
         eligible_ids=_eligible_ids(args.audit_jsonl),
@@ -170,17 +161,18 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
     for order, row in enumerate(rows):
         video_id = str(row.get("video_id") or "")
         input_video_path = row.get("path") or row.get("video_path")
+        if input_video_path and not Path(str(input_video_path)).is_absolute() and args.video_root is not None:
+            input_video_path = str(args.video_root / str(input_video_path))
         eval_video_path, eval_metadata = resolve_eval_video_for_row(
             row,
-            clip_root=cache_root / "eval_clips" / "hydra_generated_only",
+            clip_root=cache_root / "eval_clips" / "generated_only",
             materialize=not args.dry_run,
+            video_root=args.video_root,
         )
         video_path = str(eval_video_path) if str(eval_video_path) else input_video_path
         pose_expected_frames = eval_metadata.get("generated_frame_count")
-        try:
-            pose_expected_frames = int(pose_expected_frames) if pose_expected_frames is not None else None
-        except (TypeError, ValueError):
-            pose_expected_frames = None
+        if pose_expected_frames is not None and args.max_frames is not None:
+            pose_expected_frames = min(pose_expected_frames, args.max_frames)
         safe = safe_video_id(video_id)
         output_dir = cache_root / "pose" / safe
         pose_path = output_dir / args.poses_file
@@ -203,7 +195,11 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
             report["status"] = "missing_video_path"
         elif report.get("hydra_segment_status") == "unresolved":
             report["status"] = "hydra_concat_unresolved"
-        elif _pose_ok(pose_path, expected_frames=pose_expected_frames) and not args.force:
+        elif (
+            not args.force
+            and _pose_ok(pose_path, expected_frames=pose_expected_frames)
+            and (not eval_metadata or read_pose_segment(row, pose_path) == eval_metadata)
+        ):
             report["status"] = "skipped_existing_pose"
         elif args.dry_run:
             report["status"] = "dry_run"
@@ -262,6 +258,8 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
                 if results_path:
                     _write_jsonl(results_path, [report], append=True)
                 break
+        if report["status"] == "ok":
+            save_pose_segment(row, pose_path, eval_metadata)
         status_counts[str(report["status"])] += 1
         row_reports.append(report)
         if results_path:
@@ -292,6 +290,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--audit-jsonl", type=Path, help="Only run rows with audit status=ok")
     parser.add_argument("--output-root", type=Path, required=True)
     parser.add_argument("--cache-root", type=Path, required=True, help="Pose cache root.")
+    parser.add_argument("--video-root", type=Path, help="Optional base directory for relative manifest video paths.")
     parser.add_argument("--vggt-repo", "--vggt_repo", dest="vggt_repo", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path, required=True)
     parser.add_argument("--python", required=True)
@@ -323,8 +322,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     report = run_batch(args)
     if args.summary_json:
-        args.summary_json.parent.mkdir(parents=True, exist_ok=True)
-        args.summary_json.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        write_json(args.summary_json, report)
     print(json.dumps(report["summary"], ensure_ascii=False, sort_keys=True))
     return 1 if report["summary"]["status_counts"].get("error") else 0
 

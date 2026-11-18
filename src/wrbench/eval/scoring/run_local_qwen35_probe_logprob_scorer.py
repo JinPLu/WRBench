@@ -21,12 +21,21 @@ from pathlib import Path
 from statistics import median
 from typing import Any, Iterable, Sequence
 
+from wrbench.eval._io import (
+    read_json as load_json,
+    read_records,
+    resolve_video_path,
+    select_manifest_shard,
+    sha256_file,
+    stable_shard,
+    write_json,
+    write_jsonl as _io_write_jsonl,
+)
 
 try:
     from .prompts_v2_probe import (
         CAMERA_MOTION_CONTEXT_KEY,
         DEFAULT_PROMPT_MODE,
-        PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
         PROMPT_MODE_P25_D3D4_SLOT_PARSE,
         PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
         PROBE_CATALOG_VERSION,
@@ -40,14 +49,18 @@ try:
     )
     from .runtime_common import (
         META_KEYS,
+        cuda_build_or_unavailable as _cuda_build_or_unavailable,
+        derive_frames_used_from_processor_inputs,
         explicit_cuda_placement_metadata,
+        index_by_video_id as _index_by_video_id,
         load_model_explicit_cuda,
+        model_config_model_type,
+        version_or_unavailable as _version_or_unavailable,
     )
 except ImportError:
     from wrbench.eval.scoring.prompts_v2_probe import (
         CAMERA_MOTION_CONTEXT_KEY,
         DEFAULT_PROMPT_MODE,
-        PROMPT_MODE_P10_SHARED_OOV_JUDGEABILITY,
         PROMPT_MODE_P25_D3D4_SLOT_PARSE,
         PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
         PROBE_CATALOG_VERSION,
@@ -61,8 +74,13 @@ except ImportError:
     )
     from wrbench.eval.scoring.runtime_common import (
         META_KEYS,
+        cuda_build_or_unavailable as _cuda_build_or_unavailable,
+        derive_frames_used_from_processor_inputs,
         explicit_cuda_placement_metadata,
+        index_by_video_id as _index_by_video_id,
         load_model_explicit_cuda,
+        model_config_model_type,
+        version_or_unavailable as _version_or_unavailable,
     )
 
 
@@ -100,13 +118,6 @@ VLM_HUMAN_P9_CONTEXT_KEYS = {
 }
 MIN_NUMERIC_FPS = 2.0
 GATE_THRESHOLD = 0.5
-REBUILT_POOL_20260519_NAME = "runtime_v2_validation_pool_recount_20260519"
-REBUILT_OUTPUT_SUFFIX_20260519 = "_rebuilt_pool_20260519"
-REBUILT_POOL_20260519_MANIFEST_RECORDS = 261
-REBUILT_POOL_20260519_PAIR_ALLOWLIST_RECORDS = 230
-REBUILT_POOL_20260519_PAIR_ALLOWLIST_SHA256 = (
-    "9701319ac53e7b4476dac053ed845f8e866c10396f4a379978fec616692e0d15"
-)
 YES_VARIANTS = ("Yes", " yes", " Yes", "yes", "YES")
 NO_VARIANTS = ("No", " no", " No", "no", "NO")
 ORDINAL_VARIANTS = ("1", "2", "3", "4", "5")
@@ -119,22 +130,20 @@ DIMENSION_SCORE_FIELDS = {
 }
 
 
-def load_json(path: Path) -> Any:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def write_json(path: Path, payload: Any) -> None:
-    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-
-
 def load_jsonl(path: Path) -> list[dict[str, Any]]:
-    if not path.exists():
-        return []
-    rows: list[dict[str, Any]] = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        if line.strip():
-            rows.append(json.loads(line))
-    return rows
+    return read_records(path, allow_missing=True)
+
+
+def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
+    _io_write_jsonl(rows, path)
+
+
+def write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
+    _io_write_jsonl(rows, path, atomic=True)
+
+
+def id_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return _index_by_video_id(rows)
 
 
 def filter_resume_rows(
@@ -167,109 +176,8 @@ def filter_resume_rows(
     return compatible
 
 
-def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(
-        "".join(json.dumps(row, ensure_ascii=False) + "\n" for row in rows),
-        encoding="utf-8",
-    )
-
-
-def write_jsonl_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_name(f".{path.name}.tmp.{os.getpid()}")
-    write_jsonl(tmp_path, rows)
-    tmp_path.replace(path)
-
-
-def sha256_file(path: Path | None) -> str | None:
-    if path is None or not path.exists():
-        return None
-    h = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-            h.update(chunk)
-    return h.hexdigest()
-
-
-def _normalize_sha256(value: str | None) -> str | None:
-    if value is None:
-        return None
-    text = str(value).strip()
-    if text.startswith("sha256:"):
-        return text.split(":", 1)[1]
-    return text
-
-
-def _jsonl_record_count(path: Path) -> int:
-    return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
-
-
-def validate_rebuilt_pool_20260519_preflight(
-    *,
-    manifest: list[dict[str, Any]],
-    manifest_path: Path,
-    output_dir: Path,
-    pair_allowlist_jsonl: Path,
-    expected_allowlist_sha256: str | None = REBUILT_POOL_20260519_PAIR_ALLOWLIST_SHA256,
-) -> dict[str, Any]:
-    """Validate that a run is pinned to the 2026-05-19 rebuilt validation pool."""
-    errors: list[str] = []
-    manifest_records = len(manifest)
-    allowlist_records = _jsonl_record_count(pair_allowlist_jsonl)
-    allowlist_sha256 = sha256_file(pair_allowlist_jsonl)
-    manifest_parent_ok = manifest_path.parent.name == REBUILT_POOL_20260519_NAME
-    output_dir_suffix_ok = output_dir.name.endswith(REBUILT_OUTPUT_SUFFIX_20260519)
-
-    if not manifest_parent_ok:
-        errors.append(
-            f"manifest_path must be under {REBUILT_POOL_20260519_NAME}: {manifest_path}"
-        )
-    if manifest_records != REBUILT_POOL_20260519_MANIFEST_RECORDS:
-        errors.append(
-            "manifest must contain "
-            f"{REBUILT_POOL_20260519_MANIFEST_RECORDS} records, got {manifest_records}"
-        )
-    if allowlist_records != REBUILT_POOL_20260519_PAIR_ALLOWLIST_RECORDS:
-        errors.append(
-            "pair allowlist must contain "
-            f"{REBUILT_POOL_20260519_PAIR_ALLOWLIST_RECORDS} records, got {allowlist_records}"
-        )
-    if _normalize_sha256(allowlist_sha256) != _normalize_sha256(expected_allowlist_sha256):
-        errors.append(
-            "pair allowlist sha256 mismatch: "
-            f"expected {_normalize_sha256(expected_allowlist_sha256)}, got {allowlist_sha256}"
-        )
-    if not output_dir_suffix_ok:
-        errors.append(
-            f"output_dir must end with {REBUILT_OUTPUT_SUFFIX_20260519}: {output_dir}"
-        )
-
-    report = {
-        "schema_version": "runtime_v2_rebuilt_pool_preflight_20260519_v1",
-        "status": "PASS" if not errors else "FAIL",
-        "pool_name": REBUILT_POOL_20260519_NAME,
-        "manifest_path": str(manifest_path),
-        "manifest_records": manifest_records,
-        "expected_manifest_records": REBUILT_POOL_20260519_MANIFEST_RECORDS,
-        "manifest_parent_ok": manifest_parent_ok,
-        "pair_allowlist_jsonl": str(pair_allowlist_jsonl),
-        "pair_allowlist_records": allowlist_records,
-        "expected_pair_allowlist_records": REBUILT_POOL_20260519_PAIR_ALLOWLIST_RECORDS,
-        "pair_allowlist_sha256": allowlist_sha256,
-        "expected_pair_allowlist_sha256": _normalize_sha256(expected_allowlist_sha256),
-        "output_dir": str(output_dir),
-        "output_dir_suffix": REBUILT_OUTPUT_SUFFIX_20260519,
-        "output_dir_suffix_ok": output_dir_suffix_ok,
-        "errors": errors,
-    }
-    if errors:
-        raise ValueError("; ".join(errors))
-    return report
-
-
 def manifest_video_path(item: dict[str, Any]) -> Path | None:
-    raw_path = item.get("path") or item.get("video_path")
+    raw_path = resolve_video_path(item, prefer_eval_video=False)
     if not raw_path:
         return None
     return Path(str(raw_path))
@@ -303,23 +211,6 @@ def validate_manifest_video_files(manifest: list[dict[str, Any]]) -> dict[str, A
             f"{len(missing)}/{len(manifest)} videos are missing; examples: {examples}"
         )
     return report
-
-
-def stable_shard(video_id: str, num_shards: int) -> int:
-    digest = hashlib.sha256(video_id.encode("utf-8")).hexdigest()
-    return int(digest[:16], 16) % num_shards
-
-
-def select_manifest_shard(manifest: list[dict[str, Any]], *, num_shards: int, shard_id: int) -> list[dict[str, Any]]:
-    return [
-        item
-        for item in manifest
-        if item.get("video_id") and stable_shard(str(item["video_id"]), num_shards) == shard_id
-    ]
-
-
-def id_map(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    return {str(row.get("video_id")): row for row in rows if row.get("video_id") is not None}
 
 
 def load_evidence_by_video_id(path: Path | None) -> dict[str, dict[str, Any]]:
@@ -550,35 +441,6 @@ def build_apply_chat_template_kwargs(
     if chat_template_supports_variable(processor, "enable_thinking"):
         kwargs["enable_thinking"] = False
     return kwargs
-
-
-def derive_frames_used_from_processor_inputs(inputs: Any, processor: Any) -> int:
-    try:
-        grid = inputs.get("video_grid_thw") if hasattr(inputs, "get") else inputs["video_grid_thw"]
-    except Exception:
-        return 0
-    if grid is None:
-        return 0
-    try:
-        temporal_grid = grid[0, 0]
-    except Exception:
-        try:
-            temporal_grid = grid[0][0]
-        except Exception:
-            return 0
-    try:
-        temporal_grid_value = int(temporal_grid.item())
-    except Exception:
-        try:
-            temporal_grid_value = int(temporal_grid)
-        except Exception:
-            return 0
-    temporal_patch_size = getattr(getattr(processor, "video_processor", None), "temporal_patch_size", 1)
-    try:
-        patch_size = int(temporal_patch_size)
-    except Exception:
-        patch_size = 1
-    return max(0, temporal_grid_value * max(1, patch_size))
 
 
 def _probe_meta(
@@ -1041,7 +903,7 @@ class LocalQwen35ProbeLogprobScorer:
 
         started = time.perf_counter()
         video_id = str(item["video_id"])
-        video_path = str(item.get("path") or item.get("video_path") or "")
+        video_path = resolve_video_path(item, prefer_eval_video=False)
         prompt_text = str(item.get("world_state_prompt") or item.get("prompt_text") or "")
         prompt = build_runtime_v2_probe_prompt(
             world_state_prompt=prompt_text,
@@ -1175,34 +1037,6 @@ def median_sample_rows(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return row
 
 
-def _version_or_unavailable(module_name: str) -> str:
-    try:
-        module = __import__(module_name)
-    except Exception:
-        return "unavailable"
-    return str(getattr(module, "__version__", "unknown"))
-
-
-def _cuda_build_or_unavailable() -> str:
-    try:
-        import torch  # type: ignore
-    except Exception:
-        return "unavailable"
-    return str(getattr(torch.version, "cuda", None) or "unavailable")
-
-
-def model_config_model_type(model_path: Path) -> str | None:
-    config_path = model_path / "config.json"
-    if not config_path.exists():
-        return None
-    try:
-        config = load_json(config_path)
-    except Exception:
-        return None
-    value = config.get("model_type") if isinstance(config, dict) else None
-    return str(value) if value is not None else None
-
-
 def build_run_config(
     *,
     args: argparse.Namespace,
@@ -1213,7 +1047,6 @@ def build_run_config(
     frames_used_values: list[int],
     local_rank: int,
     scorer_metadata: dict[str, Any] | None = None,
-    rebuilt_pool_preflight: dict[str, Any] | None = None,
     video_file_preflight: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     scorer_metadata = scorer_metadata or {}
@@ -1262,10 +1095,6 @@ def build_run_config(
         "input_manifest_sha256": sha256_file(args.manifest_path),
         "source_scores_path": str(args.source_scores),
         "source_scores_sha256": sha256_file(args.source_scores),
-        "pair_allowlist_jsonl": str(args.pair_allowlist_jsonl) if args.pair_allowlist_jsonl else None,
-        "pair_allowlist_sha256": sha256_file(args.pair_allowlist_jsonl),
-        "require_rebuilt_pool_20260519": bool(args.require_rebuilt_pool_20260519),
-        "rebuilt_pool_20260519_preflight": rebuilt_pool_preflight,
         "video_file_preflight": video_file_preflight,
         "evidence_jsonl_path": str(args.evidence_jsonl) if args.evidence_jsonl else None,
         "evidence_jsonl_sha256": sha256_file(args.evidence_jsonl),
@@ -1302,9 +1131,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--manifest-path", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--pair-allowlist-jsonl", type=Path)
-    parser.add_argument("--require-rebuilt-pool-20260519", action="store_true")
-    parser.add_argument("--expected-pair-allowlist-sha256")
     parser.add_argument("--model-path", type=Path, required=True, help="Local Qwen3.5 model directory (set via wrbench.runtime.json eval.scorers.qwen35_model).")
     parser.add_argument("--vlm-name", required=True)
     parser.add_argument("--loader-family", choices=("auto", "qwen3vl", "qwen25vl"), required=True)
@@ -1333,6 +1159,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "--prompt-mode must be one of: "
             + ", ".join(sorted(SUPPORTED_PROMPT_MODES))
         )
+    if args.prompt_mode == PROMPT_MODE_P25_D3D4_SLOT_PARSE:
+        if args.task_context_mode != TASK_CONTEXT_MODE_NONE:
+            parser.error(
+                f"{PROMPT_MODE_P25_D3D4_SLOT_PARSE} only supports --task-context-mode none"
+            )
+        if args.evidence_jsonl is not None:
+            parser.error(
+                f"{PROMPT_MODE_P25_D3D4_SLOT_PARSE} does not support --evidence-jsonl"
+            )
     if args.strict_manifest_contract:
         strict_profile_pairs = {
             (PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED, TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA),
@@ -1371,10 +1206,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         and args.video_min_pixels > args.video_max_pixels
     ):
         parser.error("--video-min-pixels must be <= --video-max-pixels")
-    if args.require_rebuilt_pool_20260519 and args.pair_allowlist_jsonl is None:
-        parser.error("--require-rebuilt-pool-20260519 requires --pair-allowlist-jsonl")
-    if args.require_rebuilt_pool_20260519 and not args.expected_pair_allowlist_sha256:
-        parser.error("--require-rebuilt-pool-20260519 requires --expected-pair-allowlist-sha256")
     if str(args.fps) != "full":
         try:
             fps_value = float(args.fps)
@@ -1416,15 +1247,6 @@ def main(argv: list[str] | None = None) -> int:
     source_scores = load_json(args.source_scores) if args.source_scores else manifest
     if not isinstance(manifest, list) or not isinstance(source_scores, list):
         raise ValueError("--manifest-path and --source-scores must contain JSON lists")
-    rebuilt_pool_preflight = None
-    if args.require_rebuilt_pool_20260519:
-        rebuilt_pool_preflight = validate_rebuilt_pool_20260519_preflight(
-            manifest=manifest,
-            manifest_path=args.manifest_path,
-            output_dir=args.output_dir,
-            pair_allowlist_jsonl=args.pair_allowlist_jsonl,
-            expected_allowlist_sha256=args.expected_pair_allowlist_sha256,
-        )
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if args.merge_only:
         merge_manifest = manifest[: args.max_videos] if args.max_videos else manifest
@@ -1563,7 +1385,6 @@ def main(argv: list[str] | None = None) -> int:
             frames_used_values=frames_used_values,
             local_rank=local_rank,
             scorer_metadata=scorer.run_config_metadata(),
-            rebuilt_pool_preflight=rebuilt_pool_preflight,
             video_file_preflight=video_file_preflight,
         ),
     )

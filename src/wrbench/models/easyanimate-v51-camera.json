@@ -108,5 +108,6 @@
   "input_kind": "image",
   "key": "easyanimate-v51-camera",
   "payload_type": "easyanimate_camera_txt",
-  "status": "active"
+  "status": "active",
+  "viewpoint_condition_type": "model-inferred"
 }

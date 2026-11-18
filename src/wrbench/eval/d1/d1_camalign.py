@@ -10,19 +10,29 @@ from typing import Any
 
 import numpy as np
 
+from wrbench.eval._io import read_records, safe_video_id, write_json, write_jsonl
 from wrbench.eval.d1.camera_intent import score_camera_intent_row
-from wrbench.eval.d1.geometry import safe_video_id
+from wrbench.eval.d1.hydra_segments import load_pose_segment, prediction_eval_poses
+from wrbench.eval.d1.nominal_target import camera_type
+
+read_jsonl = read_records
 
 
 def _camera_type(row: dict[str, Any]) -> str:
-    return str(row.get("camera_type") or row.get("camera") or "").strip()
+    return camera_type(row)
 
 
 def _pose_file(row: dict[str, Any], cache_root: Path, poses_file: str) -> Path:
     return cache_root / "pose" / safe_video_id(row.get("video_id")) / poses_file
 
 
-def score_camalign_row(row: dict[str, Any], *, cache_root: Path, poses_file: str) -> dict[str, Any]:
+def score_camalign_row(
+    row: dict[str, Any],
+    *,
+    cache_root: Path,
+    poses_file: str,
+    scorer_version: str = "v2_lite",
+) -> dict[str, Any]:
     camera = _camera_type(row)
     if camera == "uncontrolled":
         out = dict(row)
@@ -49,7 +59,26 @@ def score_camalign_row(row: dict[str, Any], *, cache_root: Path, poses_file: str
 
     try:
         predicted = np.load(pose_file, allow_pickle=False)
-        return score_camera_intent_row(row, predicted)
+        eval_poses, hydra_meta = prediction_eval_poses(load_pose_segment(row, pose_file), predicted)
+        if hydra_meta.get("hydra_segment_status") == "unresolved":
+            out = dict(row)
+            out.update(hydra_meta)
+            out.update(
+                {
+                    "d1_camalign_score": None,
+                    "d1_camalign_status": "unresolved_hydra_segment",
+                    "d1_camalign_metric_scope": "unresolved",
+                }
+            )
+            return out
+        scored_input = dict(row)
+        if hydra_meta:
+            scored_input.update(hydra_meta)
+        return score_camera_intent_row(
+            scored_input,
+            eval_poses,
+            scorer_version=scorer_version,
+        )
     except Exception:
         out = dict(row)
         out.update(
@@ -62,20 +91,27 @@ def score_camalign_row(row: dict[str, Any], *, cache_root: Path, poses_file: str
         return out
 
 
-def read_jsonl(path: Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with path.open("r", encoding="utf-8") as handle:
-        for raw in handle:
-            if raw.strip():
-                rows.append(json.loads(raw))
-    return rows
-
-
-def write_jsonl(rows: list[dict[str, Any]], path: Path) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(row, ensure_ascii=False) + "\n")
+def summarize_camalign_rows(rows: list[dict[str, Any]], *, scorer_version: str) -> dict[str, Any]:
+    counts: dict[str, int] = {}
+    scores: list[float] = []
+    v2_lite_scores: list[float] = []
+    for row in rows:
+        status = str(row.get("d1_camalign_status") or "unknown")
+        counts[status] = counts.get(status, 0) + 1
+        score = row.get("d1_camalign_score")
+        if score is not None:
+            scores.append(float(score))
+        v2_score = row.get("d1_camalign_v2_score")
+        if v2_score is not None:
+            v2_lite_scores.append(float(v2_score))
+    return {
+        "scorer_version": scorer_version,
+        "total_rows": len(rows),
+        "scored_rows": len(scores),
+        "mean_score": (sum(scores) / len(scores)) if scores else None,
+        "mean_v2_lite_score": (sum(v2_lite_scores) / len(v2_lite_scores)) if v2_lite_scores else None,
+        "status_counts": counts,
+    }
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -89,6 +125,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         required=True,
     )
     parser.add_argument("--poses-file", "--poses_file", dest="poses_file", required=True)
+    parser.add_argument(
+        "--scorer-version",
+        "--scorer_version",
+        dest="scorer_version",
+        choices=("v2_lite", "v1"),
+        default="v2_lite",
+    )
+    parser.add_argument("--summary-json", "--summary_json", dest="summary_json")
     return parser.parse_args(argv)
 
 
@@ -96,10 +140,20 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     cache_root = Path(args.pose_cache_root)
     rows = [
-        score_camalign_row(row, cache_root=cache_root, poses_file=args.poses_file)
+        score_camalign_row(
+            row,
+            cache_root=cache_root,
+            poses_file=args.poses_file,
+            scorer_version=args.scorer_version,
+        )
         for row in read_jsonl(Path(args.input_jsonl))
     ]
     write_jsonl(rows, Path(args.output_jsonl))
+    if args.summary_json:
+        write_json(
+            Path(args.summary_json),
+            summarize_camalign_rows(rows, scorer_version=args.scorer_version),
+        )
     return 0
 
 

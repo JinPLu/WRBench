@@ -479,6 +479,9 @@ def test_main_table_camalign_prompt_only() -> None:
     assert table[0]["viewpoint_condition_type"] == "prompt-only"
     assert table[0]["D1_camalign"] == pytest.approx(0.4)
     assert table[0]["D1_camera_pose"] is None
+    assert table[0]["reobservation_support"] == 0.0
+    assert table[0]["D5_spatial_oov"] is None
+    assert table[0]["D6_state_oov"] is None
 
 
 def test_prompt_task_rejects_partial_natural25_override(tmp_path: Path) -> None:

@@ -125,5 +125,6 @@
   "key": "minwm-wan-action2v",
   "notes": "Official minWM Wan 2.1 Action2V DMD uses prompt text plus native minWM camera trajectory tokens. It does not consume a first-frame image in the verified 4-block DMD configuration.",
   "payload_type": "minwm_wan_action2v_prompt_trajectory",
-  "status": "active"
+  "status": "active",
+  "viewpoint_condition_type": "model-inferred"
 }

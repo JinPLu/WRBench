@@ -16,7 +16,7 @@
           "camera": "static",
           "kept_rows_for_model": 400,
           "model": "hunyuan_game_craft",
-          "reason": "unsupported_static_hold_upstream_gamecraft",
+          "reason": "absent_from_frozen_paper_static_scope",
           "rows": 100
         }
       ],
@@ -25,8 +25,10 @@
     "D1-CamAlign": {
       "blocking_caveat": null,
       "current_run_tag": "wrbench_paper_v1",
-      "current_source": "d1_camalign_common_yaw_static_hold_v1",
-      "promotion_status": "paper_facing_current"
+      "current_source": "d1_camalign_v2_lite",
+      "promotion_status": "paper_facing_current",
+      "reporting_denominator": 7800,
+      "static_hold_reporting_denominator": 700
     },
     "D2": {
       "blocking_caveat": null,
@@ -83,12 +85,12 @@
         "eligible_camera_policy": "exclude_uncontrolled",
         "metric_name": "D1-CamPrec",
         "pose_backend": "vggt_omega",
-        "reporting_exclusion_policy": "exclude unsupported static-hold rows from D1-CamPrec reporting denominator",
+        "reporting_exclusion_policy": "restrict D1-CamPrec reporting to the frozen paper scope",
         "reporting_exclusions": [
           {
             "camera": "static",
             "model": "hunyuan_game_craft",
-            "reason": "unsupported_static_hold_upstream_gamecraft",
+            "reason": "absent_from_frozen_paper_static_scope",
             "rows": 100
           }
         ],
@@ -104,6 +106,7 @@
       "required_status_field": "d1_status",
       "required_status_value": "ok",
       "scale": "0_to_1",
+      "scorable_status_values": [],
       "score_field": "d1_camera_accuracy",
       "source_artifact_role": "d1_requested_control_rows_jsonl"
     },
@@ -125,14 +128,22 @@
           0.0,
           1.0
         ],
+        "scorer_version": "v2_lite",
         "static_hold_intent": "static",
-        "viewpoint_condition_policy": "prompt_only_rows_for_main_table"
+        "static_hold_reporting_policy": "prompt_only_api_static_separate",
+        "viewpoint_condition_policy": "local_and_api_yaw_rows"
       },
       "output_column": "D1_camalign",
       "owner": "wrbench.eval.d1.d1_camalign",
       "required_status_field": "d1_camalign_status",
       "required_status_value": "ok",
       "scale": "0_to_1",
+      "scorable_status_values": [
+        "ok",
+        "direction_mismatch",
+        "weak_motion",
+        "motion_detected"
+      ],
       "score_field": "d1_camalign_score",
       "source_artifact_role": "d1_camalign_rows_jsonl"
     },
@@ -156,10 +167,11 @@
         ]
       },
       "output_column": "D2_visual_integrity",
-      "owner": "wrbench.eval.d2.extract_d2_dinov2_local_global_candidate",
+      "owner": "wrbench.eval.d2.extract_d2_dinov2_fullfov_candidate",
       "required_status_field": null,
       "required_status_value": null,
       "scale": "0_to_1",
+      "scorable_status_values": [],
       "score_field": "d2_selected_visual_integrity_score",
       "source_artifact_role": "d2_selected_visual_integrity_scores_json"
     },
@@ -183,6 +195,7 @@
       "required_status_field": null,
       "required_status_value": null,
       "scale": "0_to_1",
+      "scorable_status_values": [],
       "score_field": "vlm_spatial_fidelity",
       "source_artifact_role": "runtime_v2_score_probe_or_gate_masked_export"
     },
@@ -206,6 +219,7 @@
       "required_status_field": null,
       "required_status_value": null,
       "scale": "0_to_1",
+      "scorable_status_values": [],
       "score_field": "vlm_state_fidelity",
       "source_artifact_role": "runtime_v2_score_probe_or_gate_masked_export"
     },
@@ -232,6 +246,7 @@
       "required_status_field": null,
       "required_status_value": null,
       "scale": "0_to_1_or_null_when_not_applicable",
+      "scorable_status_values": [],
       "score_field": "vlm_spatial_reasoning",
       "source_artifact_role": "runtime_v2_gate_masked_export"
     },
@@ -258,6 +273,7 @@
       "required_status_field": null,
       "required_status_value": null,
       "scale": "0_to_1_or_null_when_not_applicable",
+      "scorable_status_values": [],
       "score_field": "vlm_state_reasoning",
       "source_artifact_role": "runtime_v2_gate_masked_export"
     }
@@ -275,6 +291,10 @@
   },
   "schema_version": "wrbench_latest_d1_d6_metrics_v3",
   "table_hyperparameters": {
+    "diagnostic_columns": {
+      "D1_camalign_static_hold": "prompt-only API static hold",
+      "D1_camera_pose_nominal": "nominal target comparisons without certified ground truth"
+    },
     "excluded_main_table_models": [
       "hunyuanworld_voyager"
     ]

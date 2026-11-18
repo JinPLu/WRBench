@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Final
+
+from wrbench.eval._io import read_json, resolve_video_path
 
 
 def load_model_explicit_cuda(
@@ -63,18 +66,87 @@ def require_text(mapping: dict[str, Any], key: str, scope: str) -> str:
 
 
 def scoring_video_path(row: dict[str, Any], *, surface: str | None = None) -> str:
-    scoring_surface = str(surface or row.get("scoring_video_surface") or "").strip()
-    if scoring_surface in {"full_continuation", "source_generated_concat"}:
-        for key in ("scoring_video_path", "original_concat_path", "path", "video_path"):
-            value = row.get(key)
-            if value:
-                return str(value)
-        return ""
-    for key in ("eval_video_path", "path", "video_path"):
-        value = row.get(key)
-        if value:
-            return str(value)
-    return ""
+    return resolve_video_path(row, surface=surface)
+
+
+def index_by_video_id(
+    rows: list[dict[str, Any]],
+    *,
+    label: str = "rows",
+    require_unique: bool = False,
+) -> dict[str, dict[str, Any]]:
+    mapped: dict[str, dict[str, Any]] = {}
+    duplicates: list[str] = []
+    for index, row in enumerate(rows):
+        raw_id = row.get("video_id")
+        if raw_id is None or str(raw_id).strip() == "":
+            if require_unique:
+                raise ValueError(f"{label} row {index} is missing video_id")
+            continue
+        video_id = str(raw_id).strip() if require_unique else str(raw_id)
+        if video_id in mapped:
+            duplicates.append(video_id)
+        mapped[video_id] = row
+    if require_unique and duplicates:
+        raise ValueError(f"{label} contains duplicate video_id values: {sorted(set(duplicates))[:10]}")
+    return mapped
+
+
+def version_or_unavailable(module_name: str) -> str:
+    try:
+        module = __import__(module_name)
+    except Exception:
+        return "unavailable"
+    return str(getattr(module, "__version__", "unknown"))
+
+
+def cuda_build_or_unavailable() -> str:
+    try:
+        import torch  # type: ignore
+    except Exception:
+        return "unavailable"
+    return str(getattr(torch.version, "cuda", None) or "unavailable")
+
+
+def model_config_model_type(model_path: Path) -> str | None:
+    config_path = model_path / "config.json"
+    if not config_path.exists():
+        return None
+    try:
+        config = read_json(config_path)
+    except Exception:
+        return None
+    value = config.get("model_type") if isinstance(config, dict) else None
+    return str(value) if value is not None else None
+
+
+def derive_frames_used_from_processor_inputs(inputs: Any, processor: Any) -> int:
+    try:
+        grid = inputs.get("video_grid_thw") if hasattr(inputs, "get") else inputs["video_grid_thw"]
+    except Exception:
+        return 0
+    if grid is None:
+        return 0
+    try:
+        temporal_grid = grid[0, 0]
+    except Exception:
+        try:
+            temporal_grid = grid[0][0]
+        except Exception:
+            return 0
+    try:
+        temporal_grid_value = int(temporal_grid.item())
+    except Exception:
+        try:
+            temporal_grid_value = int(temporal_grid)
+        except Exception:
+            return 0
+    temporal_patch_size = getattr(getattr(processor, "video_processor", None), "temporal_patch_size", 1)
+    try:
+        patch_size = int(temporal_patch_size)
+    except Exception:
+        patch_size = 1
+    return max(0, temporal_grid_value * max(1, patch_size))
 
 
 META_KEYS: Final[list[str]] = [

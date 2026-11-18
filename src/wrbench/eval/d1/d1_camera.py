@@ -10,12 +10,33 @@ import math
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 import numpy as np
 
+from wrbench.eval._io import (
+    read_records,
+    safe_video_id,
+    to_jsonable as _jsonable,
+    write_jsonl as _io_write_jsonl,
+)
+from wrbench.eval.d1._math import (
+    movement_strength_rot as _movement_strength_rot,
+    movement_strength_trans as _movement_strength_trans,
+    peak_signed as _peak_signed,
+    relative_poses as _relative_poses,
+    return_metrics as _return_metrics,
+    rotation_angle_deg as _rotation_angle_deg,
+    translation_offset as _translation_relative,
+    yaw_degrees as _yaw_degrees,
+)
 from wrbench.eval.d1.d1_sidecar_contract import validate_camera_control_target
-from wrbench.eval.d1.geometry import safe_video_id
+from wrbench.eval.d1.hydra_segments import load_pose_segment, prediction_eval_poses
+from wrbench.eval.d1.nominal_target import (
+    build_script_nominal_target,
+    camera_type as nominal_camera_type,
+    is_prompt_only_row,
+)
 from wrbench.eval.d1.pose import (
     PRIMARY_TARGET_POSE_PATH_FIELDS,
     POSE_INLINE_FIELDS,
@@ -23,6 +44,7 @@ from wrbench.eval.d1.pose import (
     _normalize_predicted_poses,
     score_trajectory_pose,
 )
+from wrbench.eval.plugins import D1_TARGET_MODE_HELP, D1_TARGET_MODES, DEFAULT_D1_SCORER_CONFIG
 
 
 ELIGIBLE_CAMERAS = frozenset({"static", "yaw_LR", "yaw_RL", "pan_LR", "pan_RL"})
@@ -35,18 +57,6 @@ OPENCV_C2W_VALUES = {
     "opencv camera-to-world, x-right y-down z-forward",
     "opencv camera-to-world, x right y down z forward",
 }
-
-
-def _jsonable(value: Any) -> Any:
-    if isinstance(value, dict):
-        return {str(k): _jsonable(v) for k, v in value.items()}
-    if isinstance(value, (list, tuple)):
-        return [_jsonable(v) for v in value]
-    if isinstance(value, np.generic):
-        return value.item()
-    if isinstance(value, np.ndarray):
-        return value.tolist()
-    return value
 
 
 def _camera_type(row_or_camera: dict[str, Any] | str) -> str:
@@ -393,31 +403,6 @@ def build_d1_target(
     }
 
 
-def _rotation_angle_deg(rotation: np.ndarray) -> float:
-    cos_angle = (np.trace(rotation) - 1.0) * 0.5
-    return math.degrees(math.acos(float(np.clip(cos_angle, -1.0, 1.0))))
-
-
-def _relative_poses(poses: np.ndarray) -> np.ndarray:
-    return np.linalg.inv(poses[0]) @ poses
-
-
-def _yaw_degrees(poses: np.ndarray) -> np.ndarray:
-    rel = _relative_poses(poses)
-    return np.degrees(np.arctan2(rel[:, 0, 2], rel[:, 0, 0]))
-
-
-def _translation_relative(poses: np.ndarray) -> np.ndarray:
-    return poses[:, :3, 3] - poses[0, :3, 3]
-
-
-def _peak_signed(values: np.ndarray) -> float:
-    if len(values) == 0:
-        return 0.0
-    idx = int(np.argmax(np.abs(values)))
-    return float(values[idx])
-
-
 def _shape_error(target: np.ndarray, predicted: np.ndarray) -> float:
     target_rel = _translation_relative(target)
     pred_rel = _translation_relative(predicted)
@@ -450,23 +435,6 @@ def _trajectory_shape_correlation(target: np.ndarray, predicted: np.ndarray) -> 
     if target_norm <= 1e-12 or pred_norm <= 1e-12:
         return 0.0
     return float(np.dot(target_rel, pred_rel) / (target_norm * pred_norm))
-
-
-def _movement_strength_rot(poses: np.ndarray) -> float:
-    rel = _relative_poses(poses)
-    if len(rel) == 0:
-        return 0.0
-    return max(_rotation_angle_deg(pose[:3, :3]) for pose in rel)
-
-
-def _movement_strength_trans(poses: np.ndarray) -> float:
-    rel = _translation_relative(poses)
-    return math.sqrt(float(np.max(np.sum(rel * rel, axis=1)))) if len(rel) else 0.0
-
-
-def _return_metrics(poses: np.ndarray) -> tuple[float, float]:
-    rel_final = np.linalg.inv(poses[0]) @ poses[-1]
-    return _rotation_angle_deg(rel_final[:3, :3]), float(np.linalg.norm(rel_final[:3, 3]))
 
 
 def _same_sign(a: float, b: float, *, eps: float = 1e-8) -> bool:
@@ -617,6 +585,7 @@ def _with_d1_status(row: dict[str, Any], status: str, *, target: dict[str, Any] 
     enriched = dict(row)
     enriched["d1_status"] = status
     enriched["d1_camera_accuracy"] = None
+    enriched["d1_nominal_camera_accuracy"] = None
     enriched["d1_pose_reward"] = None
     enriched["d1_metric_tier"] = (target or {}).get("metric_tier", "opencv_c2w")
     enriched["d1_target_source"] = (target or {}).get("target_source", "missing")
@@ -708,24 +677,38 @@ def score_d1_row(row: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     pan_weak_threshold = _require_config_float(cfg, "pan_weak_threshold")
     static_rot_threshold_deg = _require_config_float(cfg, "static_rot_threshold_deg")
     static_trans_threshold = _require_config_float(cfg, "static_trans_threshold")
-    camera = _camera_type(row)
-    if camera == "uncontrolled":
+    target_fallback_mode = str(cfg.get("target_fallback_mode") or "none").strip().lower()
+    if target_fallback_mode not in D1_TARGET_MODES:
+        raise ValueError(f"Unsupported target_fallback_mode: {target_fallback_mode!r}")
+    use_requested_profile = target_fallback_mode == "requested_profile"
+
+    camera = _camera_type(row) or nominal_camera_type(row)
+    if camera not in ELIGIBLE_CAMERAS and camera != "uncontrolled":
+        return _with_d1_status(row, "unsupported_camera_type", flags=["unsupported_camera_type"])
+
+    target = None
+    if not use_requested_profile:
         target = build_d1_target(
             row,
             default_frames=default_frames,
             require_main_profile=require_main_profile,
         )
+    if camera == "uncontrolled":
         return _with_d1_status(row, "excluded_uncontrolled", target=target, flags=["excluded_uncontrolled"])
-    if camera not in ELIGIBLE_CAMERAS:
-        return _with_d1_status(row, "unsupported_camera_type", flags=["unsupported_camera_type"])
 
-    target = build_d1_target(
-        row,
-        default_frames=default_frames,
-        require_main_profile=require_main_profile,
+    use_nominal_fallback = (
+        target_fallback_mode == "nominal_profile"
+        and target is not None
+        and target["status"] == "missing_target_pose"
+        and target["target_source"] == "missing"
     )
-    if target.get("status") != "ok":
+    if use_nominal_fallback:
+        target = None
+    if target is not None and target.get("status") != "ok":
         return _with_d1_status(row, str(target.get("status", "error")), target=target, flags=list(target.get("notes") or []))
+
+    if target is None and is_prompt_only_row(row):
+        return _with_d1_status(row, "excluded_prompt_only", flags=["excluded_prompt_only"])
 
     pose_file = _pose_file_for(
         row,
@@ -733,13 +716,37 @@ def score_d1_row(row: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
         poses_file,
     )
     if not pose_file.exists():
-        return _with_d1_status(row, "missing_output", target=target, flags=["missing_predicted_pose"])
+        return _with_d1_status(
+            row,
+            "missing_output",
+            target=target,
+            flags=["missing_predicted_pose"],
+        )
 
+    hydra_meta: dict[str, Any] = {}
     try:
         predicted = np.load(pose_file, allow_pickle=False)
+        eval_poses, hydra_meta = prediction_eval_poses(load_pose_segment(row, pose_file), predicted)
+        if hydra_meta.get("hydra_segment_status") == "unresolved":
+            return _with_d1_status(
+                row,
+                "unresolved_hydra_segment",
+                target=target,
+                flags=["unresolved_hydra_segment"],
+            )
+        if target is None:
+            nominal_poses, nominal_meta = build_script_nominal_target(row, len(eval_poses))
+            if nominal_poses is None:
+                status = str(nominal_meta.get("status") or "missing_target_pose")
+                rule = str(nominal_meta.get("d1_target_rule") or status)
+                return _with_d1_status(row, status, flags=[rule])
+            target = {**nominal_meta, "poses_c2w": nominal_poses}
+            target_camera_convention = "opencv"
+            if use_requested_profile:
+                target.update(target_source="requested_control_profile", evidence_level="requested_control_profile")
         score = score_d1_trajectory(
             target["poses_c2w"],
-            predicted,
+            eval_poses,
             camera_type=camera,
             predicted_pose_type=predicted_pose_type,
             predicted_camera_convention=predicted_camera_convention,
@@ -752,11 +759,23 @@ def score_d1_row(row: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
             static_trans_threshold=static_trans_threshold,
         )
     except ValueError:
-        return _with_d1_status(row, "invalid_pose", target=target, flags=["invalid_predicted_pose"])
+        return _with_d1_status(
+            row,
+            "invalid_pose",
+            target=target,
+            flags=["invalid_predicted_pose"],
+        )
     except Exception:
-        return _with_d1_status(row, "error", target=target, flags=["d1_scoring_error"])
+        return _with_d1_status(
+            row,
+            "error",
+            target=target,
+            flags=["d1_scoring_error"],
+        )
 
     enriched = dict(row)
+    if hydra_meta:
+        enriched.update(hydra_meta)
     enriched.update(score)
     enriched["d1_target_source"] = target["target_source"]
     enriched["d1_target_certification_status"] = target.get("target_certification_status", CERTIFIED_TARGET_STATUS)
@@ -765,26 +784,24 @@ def score_d1_row(row: dict[str, Any], config: dict[str, Any]) -> dict[str, Any]:
     enriched["d1_control_family"] = target.get("control_family")
     enriched["d1_control_direction"] = target.get("control_direction") or camera
     enriched["d1_control_profile"] = target.get("control_profile")
-    enriched["d1_gt_valid"] = True
+    for meta_key in ("d1_target_policy", "d1_target_rule", "d1_target_abs_yaw_deg", "d1_target_signed_yaw_deg"):
+        if meta_key in target:
+            enriched[meta_key] = target[meta_key]
+    enriched["d1_gt_valid"] = not use_nominal_fallback
+    enriched["d1_nominal_camera_accuracy"] = None
+    if use_nominal_fallback:
+        enriched["d1_nominal_camera_accuracy"] = enriched.get("d1_camera_accuracy")
+        enriched["d1_camera_accuracy"] = None
+        enriched["d1_pose_reward"] = None
     enriched["d1_metric_tier"] = score.get("d1_metric_tier") or target["metric_tier"]
     return _jsonable(enriched)
 
 
-def read_jsonl(path: str | Path) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    with Path(path).open("r", encoding="utf-8") as handle:
-        for raw in handle:
-            if raw.strip():
-                rows.append(json.loads(raw))
-    return rows
+read_jsonl = read_records
 
 
 def write_jsonl(rows: Iterable[dict[str, Any]], path: str | Path) -> None:
-    output = Path(path)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    with output.open("w", encoding="utf-8") as handle:
-        for row in rows:
-            handle.write(json.dumps(_jsonable(row), ensure_ascii=False) + "\n")
+    _io_write_jsonl(rows, path)
 
 
 def write_summary_csv(rows: list[dict[str, Any]], path: str | Path) -> None:
@@ -813,13 +830,20 @@ def write_summary_csv(rows: list[dict[str, Any]], path: str | Path) -> None:
                 "D1_translation",
                 "D1_static",
                 "D1_overall_clean_control",
+                "D1_nominal_n",
+                "D1_nominal_mean",
                 "failure_counts",
             ]
         )
         for model in sorted(grouped):
             items = grouped[model]
-            ok = [row for row in items if row.get("d1_status") == "ok"]
+            scored = [row for row in items if row.get("d1_status") == "ok"]
+            ok = [row for row in scored if row.get("d1_gt_valid")]
             acc = [float(row["d1_camera_accuracy"]) for row in ok if row.get("d1_camera_accuracy") is not None]
+            nominal = [
+                float(row["d1_nominal_camera_accuracy"])
+                for row in scored if row.get("d1_nominal_camera_accuracy") is not None
+            ]
             failures: dict[str, int] = defaultdict(int)
             certification_counts: dict[str, int] = defaultdict(int)
             evidence_counts: dict[str, int] = defaultdict(int)
@@ -848,8 +872,8 @@ def write_summary_csv(rows: list[dict[str, Any]], path: str | Path) -> None:
                     model,
                     len(items),
                     len(gt_valid) / len(items) if items else 0.0,
-                    len(ok),
-                    len(ok) / len(items) if items else 0.0,
+                    len(scored),
+                    len(scored) / len(items) if items else 0.0,
                     json.dumps(dict(sorted(certification_counts.items())), sort_keys=True),
                     json.dumps(dict(sorted(evidence_counts.items())), sort_keys=True),
                     len(ok) / len(items) if items else 0.0,
@@ -858,6 +882,8 @@ def write_summary_csv(rows: list[dict[str, Any]], path: str | Path) -> None:
                     family_scores["translation"],
                     family_scores["static"],
                     overall,
+                    len(nominal),
+                    sum(nominal) / len(nominal) if nominal else "",
                     json.dumps(dict(sorted(failures.items())), sort_keys=True),
                 ]
             )
@@ -867,32 +893,51 @@ def score_d1_rows(rows: list[dict[str, Any]], config: dict[str, Any]) -> list[di
     return [score_d1_row(row, config) for row in rows]
 
 
+def d1_scoring_config_with_defaults(overrides: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    """Merge partial D1 scorer settings with canonical ``DEFAULT_D1_SCORER_CONFIG``."""
+    cfg = dict(DEFAULT_D1_SCORER_CONFIG)
+    cfg.setdefault("require_main_profile", True)
+    if overrides:
+        for key, value in overrides.items():
+            if value is not None:
+                cfg[key] = value
+    return cfg
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Score D1 camera movement accuracy from target and cached MegaSAM poses.")
+    d = DEFAULT_D1_SCORER_CONFIG
+    parser = argparse.ArgumentParser(description="Score D1 camera movement accuracy from target and cached pose stacks.")
     parser.add_argument("--input_jsonl", "--input-jsonl", "--input", dest="input_jsonl", required=True)
     parser.add_argument("--output_jsonl", "--output-jsonl", "--output", dest="output_jsonl", required=True)
     parser.add_argument("--summary_csv", "--summary-csv", dest="summary_csv", required=True)
     parser.add_argument("--megasam_cache_root", "--megasam-cache-root", "--pose-cache-root", dest="pose_cache_root", required=True)
-    parser.add_argument("--pose-backend", required=True)
-    parser.add_argument("--poses_file", "--poses-file", dest="poses_file", required=True)
-    parser.add_argument("--default_frames", "--default-frames", dest="default_frames", type=int, required=True)
-    parser.add_argument("--predicted-pose-type", required=True)
-    parser.add_argument("--predicted-camera-convention", required=True)
-    parser.add_argument("--target-camera-convention", required=True)
-    parser.add_argument("--rot-scale-deg", type=float, required=True)
-    parser.add_argument("--trans-scale", type=float, required=True)
-    parser.add_argument("--yaw-weak-threshold-deg", type=float, required=True)
-    parser.add_argument("--pan-weak-threshold", type=float, required=True)
-    parser.add_argument("--static-rot-threshold-deg", type=float, required=True)
-    parser.add_argument("--static-trans-threshold", type=float, required=True)
+    parser.add_argument("--pose-backend", default=d["pose_backend"])
+    parser.add_argument("--poses_file", "--poses-file", dest="poses_file", default=d["poses_file"])
+    parser.add_argument("--default_frames", "--default-frames", dest="default_frames", type=int, default=d["default_frames"])
+    parser.add_argument("--predicted-pose-type", default=d["predicted_pose_type"])
+    parser.add_argument("--predicted-camera-convention", default=d["predicted_camera_convention"])
+    parser.add_argument("--target-camera-convention", default=d["target_camera_convention"])
+    parser.add_argument("--rot-scale-deg", type=float, default=d["rot_scale_deg"])
+    parser.add_argument("--trans-scale", type=float, default=d["trans_scale"])
+    parser.add_argument("--yaw-weak-threshold-deg", type=float, default=d["yaw_weak_threshold_deg"])
+    parser.add_argument("--pan-weak-threshold", type=float, default=d["pan_weak_threshold"])
+    parser.add_argument("--static-rot-threshold-deg", type=float, default=d["static_rot_threshold_deg"])
+    parser.add_argument("--static-trans-threshold", type=float, default=d["static_trans_threshold"])
     parser.add_argument(
         "--sidecar-profile-gate",
         choices=("main", "certified_opencv"),
-        required=True,
+        default="main",
         help=(
             "Target sidecar validation gate. 'main' requires the canonical main-table profile; "
             "'certified_opencv' accepts certified OpenCV C2W sidecars after external QC."
         ),
+    )
+    parser.add_argument(
+        "--target-mode", "--target-fallback-mode",
+        dest="target_fallback_mode",
+        choices=D1_TARGET_MODES,
+        default=d["target_fallback_mode"],
+        help=D1_TARGET_MODE_HELP,
     )
     return parser.parse_args(argv)
 
@@ -915,6 +960,7 @@ def main(argv: list[str] | None = None) -> int:
             "pan_weak_threshold": args.pan_weak_threshold,
             "static_rot_threshold_deg": args.static_rot_threshold_deg,
             "static_trans_threshold": args.static_trans_threshold,
+            "target_fallback_mode": args.target_fallback_mode,
         },
     )
     for row in rows:

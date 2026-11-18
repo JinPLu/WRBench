@@ -42,3 +42,9 @@ The published CamAlign surface uses the repaired generated-only path. The
 frozen CamPrec value retains legacy full-concat-pose then post-hoc-slice
 provenance. See
 `src/wrbench/data/natural25/releases/paper_main_20260608/hydra_evaluation_policy.json`.
+
+When `.camera.json` sidecars are omitted (for example, on standalone HF video
+downloads), D1 helpers (`hydra_segments.py`, `d1_camera.py`, `d1_camalign.py`,
+`run_d1_vggt_omega_batch.py`) apply the canonical `77+77` split (`[77, 154)`)
+exclusively to 154-frame HyDRA clips and fail closed on other frame counts or
+malformed explicit sidecars.

@@ -784,6 +784,40 @@ def _cmd_eval(args: argparse.Namespace) -> int:
             print(md.read_text(encoding="utf-8") if md.is_file() else path.read_text(encoding="utf-8"))
         return 0
 
+    if args.eval_command == "plugins":
+        import json as json_mod
+
+        import wrbench.adapters  # noqa: F401
+        from wrbench.adapters.base import registered_model_keys
+        from wrbench.backends.launchers import supported_models as registered_launchers
+        from wrbench.eval.plugins import (
+            registered_d2_scorers,
+            registered_pose_backends,
+            registered_segment_policies,
+            registered_vlm_scorers,
+        )
+
+        payload = {
+            "eval": {
+                "pose_backends": registered_pose_backends(),
+                "segment_policies": sorted(registered_segment_policies()),
+                "d2_scorers": registered_d2_scorers(),
+                "vlm_scorers": registered_vlm_scorers(),
+            },
+            "generation": {
+                "adapter_models": registered_model_keys(),
+                "launchers": sorted(registered_launchers()),
+            },
+        }
+        if args.json:
+            print(json_mod.dumps(payload, indent=2))
+        else:
+            for section, mapping in payload.items():
+                print(f"[{section}]")
+                for key, items in mapping.items():
+                    print(f"  {key}: {', '.join(items) if items else 'none'}")
+        return 0
+
     if args.eval_command == "table":
         if not args.runtime_scores or not args.out_csv or not args.out_md or not args.out_summary:
             print(
@@ -821,6 +855,7 @@ def _cmd_eval(args: argparse.Namespace) -> int:
             poses_file=args.poses_file,
             default_frames=args.default_frames,
             sidecar_profile_gate=args.sidecar_profile_gate,
+            target_fallback_mode=args.target_fallback_mode,
             predicted_pose_type=args.predicted_pose_type,
             predicted_camera_convention=args.predicted_camera_convention,
             target_camera_convention=args.target_camera_convention,
@@ -838,17 +873,20 @@ def _cmd_eval(args: argparse.Namespace) -> int:
             output_jsonl=Path(args.output_jsonl),
             pose_cache_root=Path(args.pose_cache_root),
             poses_file=args.poses_file,
+            scorer_version=args.scorer_version,
+            summary_json=Path(args.summary_json) if args.summary_json else None,
         )
 
     eval_runtime = require_eval_runtime(runtime_path)
 
-    if args.eval_command == "d1-vggt":
+    if args.eval_command in {"pose", "d1-vggt"}:
         return d1_vggt_batch(
             eval_runtime=eval_runtime,
             input_jsonl=Path(args.input_jsonl),
             output_root=Path(args.output_root),
             cache_root=Path(args.cache_root),
             execution_mode=args.execution_mode,
+            video_root=Path(args.video_root) if args.video_root else None,
         )
 
     if args.eval_command == "d2":
@@ -857,6 +895,7 @@ def _cmd_eval(args: argparse.Namespace) -> int:
             videos_manifest=Path(args.videos_manifest),
             out_jsonl=Path(args.out_jsonl),
             model_dir=Path(args.model_dir) if args.model_dir else None,
+            video_root=Path(args.video_root) if args.video_root else None,
         )
 
     if args.eval_command == "d3d6":
@@ -875,6 +914,9 @@ def _cmd_eval(args: argparse.Namespace) -> int:
             out_dir=Path(args.out_dir),
             scorer_profile=args.scorer_profile,
             sidecar_profile_gate=args.sidecar_profile_gate,
+            target_fallback_mode=args.target_fallback_mode,
+            video_root=Path(args.video_root) if args.video_root else None,
+            camalign_scorer_version=args.camalign_scorer_version,
         )
 
     print(f"eval: unknown sub-command {args.eval_command!r}", file=sys.stderr)
@@ -1083,34 +1125,46 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Explicit path to wrbench.runtime.json for eval scorer runtime paths.",
     )
 
+    from wrbench.eval.plugins import D1_TARGET_MODE_HELP, D1_TARGET_MODES, DEFAULT_D1_SCORER_CONFIG
+
     p_eval_contract = eval_sub.add_parser("contract", help="Print the D1-D6 metric contract.")
     p_eval_contract.add_argument("--json", action="store_true", help="Print JSON contract.")
 
-    p_eval_d1 = eval_sub.add_parser("d1", help="Score D1 camera accuracy from pose cache + sidecars.")
+    p_eval_plugins = eval_sub.add_parser("plugins", help="List registered generation and evaluation plugins.")
+    p_eval_plugins.add_argument("--json", action="store_true", help="Print JSON plugin summary.")
+
+    p_eval_d1 = eval_sub.add_parser("d1", help="Score D1 camera accuracy from cached poses and camera targets.")
     p_eval_d1.add_argument("--input-jsonl", required=True)
     p_eval_d1.add_argument("--output-jsonl", required=True)
     p_eval_d1.add_argument("--summary-csv", required=True)
     p_eval_d1.add_argument("--pose-cache-root", required=True)
-    p_eval_d1.add_argument("--pose-backend", required=True)
-    p_eval_d1.add_argument("--poses-file", required=True)
-    p_eval_d1.add_argument("--default-frames", type=int, required=True)
-    p_eval_d1.add_argument("--predicted-pose-type", required=True)
-    p_eval_d1.add_argument("--predicted-camera-convention", required=True)
-    p_eval_d1.add_argument("--target-camera-convention", required=True)
-    p_eval_d1.add_argument("--rot-scale-deg", type=float, required=True)
-    p_eval_d1.add_argument("--trans-scale", type=float, required=True)
-    p_eval_d1.add_argument("--yaw-weak-threshold-deg", type=float, required=True)
-    p_eval_d1.add_argument("--pan-weak-threshold", type=float, required=True)
-    p_eval_d1.add_argument("--static-rot-threshold-deg", type=float, required=True)
-    p_eval_d1.add_argument("--static-trans-threshold", type=float, required=True)
+    p_eval_d1.add_argument("--pose-backend", default=DEFAULT_D1_SCORER_CONFIG["pose_backend"])
+    p_eval_d1.add_argument("--poses-file", default=DEFAULT_D1_SCORER_CONFIG["poses_file"])
+    p_eval_d1.add_argument("--default-frames", type=int, default=DEFAULT_D1_SCORER_CONFIG["default_frames"])
+    p_eval_d1.add_argument("--predicted-pose-type", default=DEFAULT_D1_SCORER_CONFIG["predicted_pose_type"])
+    p_eval_d1.add_argument("--predicted-camera-convention", default=DEFAULT_D1_SCORER_CONFIG["predicted_camera_convention"])
+    p_eval_d1.add_argument("--target-camera-convention", default=DEFAULT_D1_SCORER_CONFIG["target_camera_convention"])
+    p_eval_d1.add_argument("--rot-scale-deg", type=float, default=DEFAULT_D1_SCORER_CONFIG["rot_scale_deg"])
+    p_eval_d1.add_argument("--trans-scale", type=float, default=DEFAULT_D1_SCORER_CONFIG["trans_scale"])
+    p_eval_d1.add_argument("--yaw-weak-threshold-deg", type=float, default=DEFAULT_D1_SCORER_CONFIG["yaw_weak_threshold_deg"])
+    p_eval_d1.add_argument("--pan-weak-threshold", type=float, default=DEFAULT_D1_SCORER_CONFIG["pan_weak_threshold"])
+    p_eval_d1.add_argument("--static-rot-threshold-deg", type=float, default=DEFAULT_D1_SCORER_CONFIG["static_rot_threshold_deg"])
+    p_eval_d1.add_argument("--static-trans-threshold", type=float, default=DEFAULT_D1_SCORER_CONFIG["static_trans_threshold"])
     p_eval_d1.add_argument(
         "--sidecar-profile-gate",
         choices=("main", "certified_opencv"),
-        required=True,
+        default="main",
         help=(
             "Target sidecar validation gate. 'main' is the canonical main-table profile; "
             "'certified_opencv' accepts certified OpenCV C2W sidecars after external QC."
         ),
+    )
+    p_eval_d1.add_argument(
+        "--target-mode", "--target-fallback-mode",
+        dest="target_fallback_mode",
+        choices=D1_TARGET_MODES,
+        default=DEFAULT_D1_SCORER_CONFIG["target_fallback_mode"],
+        help=D1_TARGET_MODE_HELP,
     )
 
     p_eval_camalign = eval_sub.add_parser(
@@ -1121,21 +1175,24 @@ def _build_parser() -> argparse.ArgumentParser:
     p_eval_camalign.add_argument("--output-jsonl", required=True)
     p_eval_camalign.add_argument("--pose-cache-root", required=True)
     p_eval_camalign.add_argument("--poses-file", required=True)
+    p_eval_camalign.add_argument("--scorer-version", choices=("v2_lite", "v1"), default="v2_lite")
+    p_eval_camalign.add_argument("--summary-json")
 
-    p_eval_vggt = eval_sub.add_parser("d1-vggt", help="Export VGGT-Omega poses for D1 scoring.")
+    p_eval_vggt = eval_sub.add_parser("pose", aliases=["d1-vggt"], help="Export camera poses for D1 scoring.")
     p_eval_vggt.add_argument("--input-jsonl", required=True)
     p_eval_vggt.add_argument("--output-root", required=True)
     p_eval_vggt.add_argument("--cache-root", required=True)
+    p_eval_vggt.add_argument("--video-root")
     p_eval_vggt.add_argument(
         "--execution-mode",
         choices=("subprocess", "inprocess"),
-        required=True,
     )
 
-    p_eval_d2 = eval_sub.add_parser("d2", help="Extract DINOv2 D2 visual-integrity features.")
+    p_eval_d2 = eval_sub.add_parser("d2", help="Score D2 visual integrity.")
     p_eval_d2.add_argument("--videos-manifest", required=True)
     p_eval_d2.add_argument("--out-jsonl", required=True)
     p_eval_d2.add_argument("--model-dir")
+    p_eval_d2.add_argument("--video-root")
 
     p_eval_run = eval_sub.add_parser(
         "run",
@@ -1157,6 +1214,15 @@ def _build_parser() -> argparse.ArgumentParser:
             "'certified_opencv' accepts certified OpenCV C2W sidecars after external QC."
         ),
     )
+    p_eval_run.add_argument(
+        "--target-mode", "--target-fallback-mode",
+        dest="target_fallback_mode",
+        choices=D1_TARGET_MODES,
+        default=DEFAULT_D1_SCORER_CONFIG["target_fallback_mode"],
+        help=D1_TARGET_MODE_HELP,
+    )
+    p_eval_run.add_argument("--video-root", help="Optional base directory for relative manifest video paths.")
+    p_eval_run.add_argument("--camalign-scorer-version", choices=("v2_lite", "v1"), default="v2_lite")
 
     p_eval_d3d6 = eval_sub.add_parser("d3d6", help="Run visible/returned VLM scoring stages (power users).")
     p_eval_d3d6.add_argument("--manifest", required=True)
@@ -1221,6 +1287,12 @@ def main(argv: list[str] | None = None) -> int:
     if handler is None:
         parser.print_help()
         return 1
+    if handler is _cmd_eval:
+        try:
+            return handler(args)
+        except (OSError, ValueError, RuntimeError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
     return handler(args)
 
 

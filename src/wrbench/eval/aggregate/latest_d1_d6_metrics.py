@@ -13,6 +13,10 @@ from typing import Any, Mapping
 SCHEMA_VERSION = "wrbench_latest_d1_d6_metrics_v3"
 MAIN_TABLE_HYPERPARAMETERS = {
     "excluded_main_table_models": ("hunyuanworld_voyager",),
+    "diagnostic_columns": {
+        "D1_camera_pose_nominal": "nominal target comparisons without certified ground truth",
+        "D1_camalign_static_hold": "prompt-only API static hold",
+    },
 }
 PAPER_FACING_READY_STATUS = "paper_facing_current"
 BENCHMARK_DEFAULT_STATUS = "benchmark_default_current"
@@ -36,7 +40,7 @@ CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
                 "model": "hunyuan_game_craft",
                 "camera": "static",
                 "rows": 100,
-                "reason": "unsupported_static_hold_upstream_gamecraft",
+                "reason": "absent_from_frozen_paper_static_scope",
                 "kept_rows_for_model": 400,
             },
         ),
@@ -48,7 +52,9 @@ CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
     },
     "D1-CamAlign": {
         "promotion_status": PAPER_FACING_READY_STATUS,
-        "current_source": "d1_camalign_common_yaw_static_hold_v1",
+        "current_source": "d1_camalign_v2_lite",
+        "reporting_denominator": 7800,
+        "static_hold_reporting_denominator": 700,
         "current_run_tag": CONTRACT_VERSION,
         "blocking_caveat": None,
     },
@@ -108,6 +114,7 @@ class MetricSpec:
     scale: str
     required_status_field: str | None = None
     required_status_value: str | None = None
+    scorable_status_values: tuple[str, ...] = ()
     allow_null_score: bool = False
     fallback_score_fields: tuple[str, ...] = ()
     forbidden_fallback_fields: tuple[str, ...] = ()
@@ -137,13 +144,13 @@ LATEST_METRICS: tuple[MetricSpec, ...] = (
             "target_coordinate_convention": "opencv_c2w",
             "pose_backend": "vggt_omega",
             "api_prompt_camera_policy": "separate_D1_CamAlign_metric_not_merged",
-            "reporting_exclusion_policy": "exclude unsupported static-hold rows from D1-CamPrec reporting denominator",
+            "reporting_exclusion_policy": "restrict D1-CamPrec reporting to the frozen paper scope",
             "reporting_exclusions": (
                 {
                     "model": "hunyuan_game_craft",
                     "camera": "static",
                     "rows": 100,
-                    "reason": "unsupported_static_hold_upstream_gamecraft",
+                    "reason": "absent_from_frozen_paper_static_scope",
                 },
             ),
             "score_range": (0.0, 1.0),
@@ -159,11 +166,14 @@ LATEST_METRICS: tuple[MetricSpec, ...] = (
         scale="0_to_1",
         required_status_field="d1_camalign_status",
         required_status_value="ok",
+        scorable_status_values=("ok", "direction_mismatch", "weak_motion", "motion_detected"),
         hyperparameters={
             "metric_name": "D1-CamAlign",
+            "scorer_version": "v2_lite",
             "common_yaw_intents": ("yaw_LR", "yaw_RL"),
             "static_hold_intent": "static",
-            "viewpoint_condition_policy": "prompt_only_rows_for_main_table",
+            "viewpoint_condition_policy": "local_and_api_yaw_rows",
+            "static_hold_reporting_policy": "prompt_only_api_static_separate",
             "never_merge_with": "D1_camera_pose",
             "pose_backend": "vggt_omega",
             "score_range": (0.0, 1.0),
@@ -175,7 +185,7 @@ LATEST_METRICS: tuple[MetricSpec, ...] = (
         display_name="Visual integrity (D2)",
         score_field="d2_selected_visual_integrity_score",
         source_artifact_role="d2_selected_visual_integrity_scores_json",
-        owner="wrbench.eval.d2.extract_d2_dinov2_local_global_candidate",
+        owner="wrbench.eval.d2.extract_d2_dinov2_fullfov_candidate",
         scale="0_to_1",
         forbidden_fallback_fields=("d2_dinov2_temporal_consistency",),
         hyperparameters={
@@ -306,8 +316,17 @@ def require_metric_value(row: Mapping[str, Any], spec: MetricSpec, *, context: s
     if spec.required_status_field:
         if spec.required_status_field not in row:
             raise ValueError(f"{context}: missing required status field {spec.required_status_field}")
-        if str(row.get(spec.required_status_field)) != str(spec.required_status_value):
+        allowed = (
+            {str(status) for status in spec.scorable_status_values}
+            if spec.scorable_status_values
+            else {str(spec.required_status_value)}
+        )
+        if str(row.get(spec.required_status_field)) not in allowed:
             return None
+    if spec.dimension_id == "D1" and (
+        row.get("d1_gt_valid") is False or row.get("d1_target_source") == "nominal_profile_fallback"
+    ):
+        return None
     if missing_primary:
         raise ValueError(f"{context}: missing required metric field {spec.score_field}")
     value = row.get(spec.score_field)
@@ -399,6 +418,11 @@ def metric_contract_markdown(payload: Mapping[str, Any] | None = None) -> str:
             "",
             "## Method Notes",
             "",
+            "- Frozen paper D1-CamPrec uses requested camera profiles as targets. The evaluator "
+            "also supports explicit validated targets and a separate `D1_camera_pose_nominal` "
+            "diagnostic for missing targets in custom runs.",
+            "- D1-CamAlign v2-lite common-yaw includes local and API yaw rows. "
+            "API static-hold is reported separately as `D1_camalign_static_hold`.",
             "- D2 uses the fixed full-FoV DINOv2 v2 visual-integrity score: "
             f"`{d2.score_field} = d2_lg_v2_candidate_e = "
             f"{d2_params['combine_rule']}`. Preprocessing is "

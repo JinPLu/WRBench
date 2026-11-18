@@ -154,5 +154,6 @@
   "input_kind": "image",
   "key": "minwm-hy-action2v",
   "payload_type": "minwm_hy_action2v_trajectory_json",
-  "status": "active"
+  "status": "active",
+  "viewpoint_condition_type": "model-inferred"
 }
