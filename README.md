@@ -3,7 +3,7 @@
 **Official toolkit and release artifacts for [WRBench](https://jinplu.github.io/WRBench/), a diagnostic benchmark for testing whether video world models preserve world state across camera motion.**
 
 [![Paper](https://img.shields.io/badge/Paper-arXiv%3A2606.20545-b31b1b?logo=arxiv&logoColor=red)](https://arxiv.org/abs/2606.20545)
-[![Artifacts](https://img.shields.io/badge/Hugging%20Face-Artifacts-yellow?logo=huggingface)](https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26)
+[![Hugging Face Collection](https://img.shields.io/badge/Hugging%20Face-Collection-yellow?logo=huggingface)](https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core)
 [![Leaderboard](https://img.shields.io/badge/Hugging%20Face-Leaderboard-yellow?logo=huggingface)](https://huggingface.co/spaces/WRBench/wrbench-leaderboard)
 
 <p align="center">
@@ -17,6 +17,23 @@ WRBench provides three composable pieces:
 - **Evaluate:** score existing videos with the separable D1–D6 diagnostic contract.
 
 The repository also bundles Natural-25 prompts and first frames, the frozen 23-model paper table, and the versioned paper reproducibility contract.
+
+## Release resources
+
+The [Hugging Face Collection](https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core) brings together the paper, datasets, and interactive leaderboard.
+
+| Resource | What you'll find |
+| --- | --- |
+| [Paper](https://arxiv.org/abs/2606.20545) | Benchmark design, evaluation protocol, and reported results |
+| [Natural-25 inputs](https://huggingface.co/datasets/WRBench/wrbench-natural25) | Test prompts, first frames, and camera specifications |
+| [Results and addenda](https://huggingface.co/datasets/WRBench/wrbench-results) | Frozen paper tables and separately versioned rolling results |
+| [Generated videos and scores](https://huggingface.co/datasets/WRBench/wrbench-videos) | Model outputs, video index, and per-video scores |
+| [Human annotations](https://huggingface.co/datasets/WRBench/wrbench-human-annotations) | Released human judgments and annotation metadata |
+| [Leaderboard](https://huggingface.co/spaces/WRBench/wrbench-leaderboard) | Interactive comparison of released model results |
+
+For the paper snapshot, use the [frozen input release](src/wrbench/data/natural25/releases/paper_main_20260608/README.md)
+and the [bundled 23-model results](src/wrbench/data/results/), which cover 9,600 videos. The input release documents
+the exact prompts, first frames, camera scopes, and source mappings. Rolling updates are versioned separately on Hugging Face.
 
 ## Install
 
@@ -103,21 +120,6 @@ wrbench doctor --model <model-key>
 | D6 | Re-observation event-state consistency | The relevant content returns into view |
 
 Rows without re-observation support are excluded from D5/D6 rather than counted as failures. The exact contract lives in [`src/wrbench/eval/contract/`](src/wrbench/eval/contract/).
-
-## Published artifacts
-
-| Artifact | Source |
-| --- | --- |
-| Paper | [arXiv:2606.20545](https://arxiv.org/abs/2606.20545) |
-| All releases | [Hugging Face collection](https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26) |
-| Natural-25 | [dataset](https://huggingface.co/datasets/WRBench/wrbench-natural25) · [bundled data](src/wrbench/data/natural25/) |
-| Frozen paper prompts, first frames, camera scopes, and source mappings | [`paper_main_20260608`](src/wrbench/data/natural25/releases/paper_main_20260608/README.md) |
-| Results | [rolling dataset](https://huggingface.co/datasets/WRBench/wrbench-results) · [bundled frozen 23-model tables](src/wrbench/data/results/) |
-| Videos and per-video scores | [dataset](https://huggingface.co/datasets/WRBench/wrbench-videos) |
-| Human annotations | [dataset](https://huggingface.co/datasets/WRBench/wrbench-human-annotations) |
-| Leaderboard | [Space](https://huggingface.co/spaces/WRBench/wrbench-leaderboard) |
-
-The 9,600-row paper table and its provenance are frozen. Corrections or newly verified assets belong to a separately versioned rolling release; they do not silently rewrite the paper aggregates. Exact prompt, first-frame, TV2V-source, and HyDRA policies are owned by the linked release contract rather than repeated here.
 
 ## Documentation
 

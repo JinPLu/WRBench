@@ -47,14 +47,16 @@ aligned on these canonical URLs:
 
 - Paper: <https://arxiv.org/abs/2606.20545>
 - Hugging Face paper page: <https://huggingface.co/papers/2606.20545>
-- Release collection: <https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26>
+- Hugging Face Collection: <https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core>
 - Leaderboard: <https://huggingface.co/spaces/WRBench/wrbench-leaderboard>
 - Natural-25: <https://huggingface.co/datasets/WRBench/wrbench-natural25>
 - Results: <https://huggingface.co/datasets/WRBench/wrbench-results>
 - Human annotations: <https://huggingface.co/datasets/WRBench/wrbench-human-annotations>
 - Videos: <https://huggingface.co/datasets/WRBench/wrbench-videos>
 
-The frozen project-page table remains the 23-model paper table. Text-to-video
-addenda, including `minwm-wan-action2v`, are released separately in the results
-dataset as `wrbench_t2v_results.json` until the T2V target-certification policy
-is promoted into the main table.
+The project's Release resources section links directly to the public datasets
+and leaderboard. The project-page table preserves the 23-model paper results.
+The Hugging Face results dataset and leaderboard track subsequent public
+releases. Text-to-video addenda, including `minwm-wan-action2v`, are released
+separately in the results dataset as `wrbench_t2v_results.json` until the T2V
+target-certification policy is promoted into the main table.

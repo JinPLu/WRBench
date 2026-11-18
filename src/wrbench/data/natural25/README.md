@@ -41,8 +41,8 @@ The generic duplicate rotation-stress scope is not shipped;
 
 ## Hugging Face release
 
-- WRBench release collection:
-  <https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26>
+- Hugging Face Collection:
+  <https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core>
 - Natural-25 dataset card and viewer:
   <https://huggingface.co/datasets/WRBench/wrbench-natural25>
 - Benchmark videos generated from Natural-25:

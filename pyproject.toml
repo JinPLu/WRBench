@@ -19,7 +19,7 @@ Homepage = "https://jinplu.github.io/WRBench/"
 Repository = "https://github.com/JinPLu/WRBench"
 Paper = "https://arxiv.org/abs/2606.20545"
 "Hugging Face Paper" = "https://huggingface.co/papers/2606.20545"
-"Hugging Face Artifacts" = "https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26"
+"Hugging Face Collection" = "https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core"
 Leaderboard = "https://huggingface.co/spaces/WRBench/wrbench-leaderboard"
 
 [project.optional-dependencies]

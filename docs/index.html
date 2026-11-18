@@ -228,6 +228,12 @@
       isolation: isolate;
     }
 
+    @media (min-width: 681px) {
+      #resources {
+        scroll-margin-top: 6rem;
+      }
+    }
+
     .content-section:nth-of-type(even) {
       background: #ffffff;
     }
@@ -2198,6 +2204,7 @@
       <a href="#findings">Findings</a>
       <a href="#positioning">Positioning</a>
       <a href="#results">Results</a>
+      <a href="#resources">Resources</a>
       <a href="#analysis">Evidence</a>
       <a href="#videos">Cases</a>
       <a href="#method">Method</a>
@@ -2220,7 +2227,7 @@
             <a class="btn" href="https://arxiv.org/pdf/2606.20545" target="_blank" rel="noopener">Paper PDF</a>
             <a class="btn" href="https://github.com/JinPLu/WRBench" target="_blank" rel="noopener">GitHub Code</a>
             <a class="btn" href="https://huggingface.co/papers/2606.20545" target="_blank" rel="noopener">HF Paper</a>
-            <a class="btn" href="https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26" target="_blank" rel="noopener">Artifacts</a>
+            <a class="btn" href="https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core" target="_blank" rel="noopener">Hugging Face Collection</a>
             <a class="btn" href="https://huggingface.co/spaces/WRBench/wrbench-leaderboard" target="_blank" rel="noopener">Leaderboard</a>
             <a class="btn" href="#insight">See the gap</a>
             <a class="btn" href="#findings">Key findings</a>
@@ -2454,6 +2461,42 @@
         </div>
       </div>
     </section>
+
+    <div id="resources" class="content-section" role="region" aria-labelledby="resources-title">
+      <div class="container">
+        <div class="section-header">
+          <h2 class="section-title" id="resources-title">Release resources</h2>
+        </div>
+        <p class="section-lead">The table above preserves the results reported in the paper. The Hugging Face results
+          dataset and leaderboard track subsequent public releases.</p>
+        <div class="figure-grid-3">
+          <article class="panel">
+            <h3><a href="https://huggingface.co/datasets/WRBench/wrbench-natural25">Natural-25 inputs</a></h3>
+            <p>Download the prompts and first frames for the benchmark cases.</p>
+          </article>
+          <article class="panel">
+            <h3><a href="https://huggingface.co/datasets/WRBench/wrbench-results">Results and addenda</a></h3>
+            <p>Download rolling model scores and separately tracked benchmark addenda.</p>
+          </article>
+          <article class="panel">
+            <h3><a href="https://huggingface.co/datasets/WRBench/wrbench-videos">Generated videos and scores</a></h3>
+            <p>Browse generated clips and their per-video scoring records.</p>
+          </article>
+          <article class="panel">
+            <h3><a href="https://huggingface.co/datasets/WRBench/wrbench-human-annotations">Human annotations</a></h3>
+            <p>Access the human comparison labels used to calibrate the diagnostic scores.</p>
+          </article>
+          <article class="panel">
+            <h3><a href="https://huggingface.co/spaces/WRBench/wrbench-leaderboard">Leaderboard</a></h3>
+            <p>Explore current public results by diagnostic dimension.</p>
+          </article>
+          <article class="panel">
+            <h3><a href="https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core">Hugging Face Collection</a></h3>
+            <p>Find the paper, datasets, and leaderboard in one place.</p>
+          </article>
+        </div>
+      </div>
+    </div>
 
     <section id="analysis" class="content-section">
       <div class="container">
@@ -2817,7 +2860,7 @@
         <span>WRBench · Current World Models Lack a Persistent State Core · <a href="https://arxiv.org/abs/2606.20545">arXiv:2606.20545</a></span>
         <span class="footer-links"><a href="https://github.com/JinPLu/WRBench">GitHub</a> · <a
             href="https://huggingface.co/papers/2606.20545">HF Paper</a> · <a
-            href="https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core-6a365c717251293c9fc2cc26">Artifacts</a> · <a
+            href="https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core">Hugging Face Collection</a> · <a
             href="https://huggingface.co/spaces/WRBench/wrbench-leaderboard">Leaderboard</a> · <a href="mailto:jinplu@mail.ustc.edu.cn">Contact</a>
           <span class="footer-traffic">
             ·
