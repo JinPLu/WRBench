@@ -13,6 +13,7 @@
 
 - Select pose, D2, and VLM backends in `eval.backends`. Custom backends use the same manifest and output contracts as built-in backends.
 - Share evaluation I/O and pose math, consolidate the result table builder, and remove obsolete scoring wrappers.
+- Add ReCamMaster video-to-video generation with compiled camera trajectories.
 
 ## 0.1.3 — 2026-07-13
 

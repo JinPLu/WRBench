@@ -59,6 +59,7 @@ def _require_inputs(
 def _sidecar_metadata(key: str, payload: Any, camera: str, output_path: Path) -> dict[str, Any]:
     record = model_record(key)
     peak = payload.metadata.get("megasam_precision_inputs", {}).get("rotation_peak_signed_deg")
+    output_frames = payload.metadata.get("output_frame_count", payload.target_trajectory.frame_count)
     meta = unified_sidecar_extra(
         payload_metadata=dict(payload.metadata),
         payload_type=payload.payload_type,
@@ -79,8 +80,8 @@ def _sidecar_metadata(key: str, payload: Any, camera: str, output_path: Path) ->
             "requested_frame_count": payload.metadata.get("frame_mapping", {}).get(
                 "requested_frames", payload.target_trajectory.frame_count
             ),
-            "model_frame_count": payload.target_trajectory.frame_count,
-            "generated_frame_count": payload.target_trajectory.frame_count,
+            "model_frame_count": output_frames,
+            "generated_frame_count": output_frames,
             "target_c2w_path": str(output_path.with_suffix(output_path.suffix + ".target_c2w.npy")),
             "camera_trajectory_json_path": str(output_path.with_suffix(output_path.suffix + ".camera_trajectory.json")),
             "model_control_samples_path": str(output_path.with_suffix(output_path.suffix + ".model_control_samples.json")),
@@ -146,6 +147,9 @@ def compile_camera(
     key = canonical_model_key(model)
     record = model_record(key)
     _require_inputs(key, image, source_video, prompt=prompt, dry_run=dry_run)
+    out_path = Path(out)
+    if key == "recammaster" and not dry_run and out_path.exists():
+        raise FileExistsError(f"ReCamMaster output already exists: {out_path}. Choose a new --out path.")
     width = int(width if width is not None else record.default_width)
     height = int(height if height is not None else record.default_height)
     fps = int(fps if fps is not None else record.default_fps)
@@ -168,7 +172,6 @@ def compile_camera(
         work_dir=work_dir or Path(out).parent,
         prompt=prompt,
     )
-    out_path = Path(out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     _write_model_control_samples(out_path, payload)
     artifacts = payload.target_trajectory.write_target_artifacts(

@@ -97,7 +97,7 @@ Scorer requirements and granular commands are documented in [the evaluation guid
 
 ## 3. Generate videos (optional)
 
-Real generation is an explicit opt-in because each upstream model has its own environment and weights. Copy [`wrbench.runtime.example.json`](wrbench.runtime.example.json), configure a supported backend, then add `--runtime-config /path/to/wrbench.runtime.json --no-dry-run` to the compile command above. See [the backend guide](docs/backends/README.md).
+Real generation is an explicit opt-in because each upstream model has its own environment and weights. Copy [`wrbench.runtime.example.json`](wrbench.runtime.example.json), configure a supported backend, then add `--runtime-config /path/to/wrbench.runtime.json --no-dry-run` to the compile command above. See [the backend guide](docs/backends/README.md) or try the [ReCamMaster source-video example](docs/models/recammaster.md).
 
 ## 4. Add a model
 

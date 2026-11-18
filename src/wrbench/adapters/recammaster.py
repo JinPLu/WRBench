@@ -38,6 +38,8 @@ class ReCamMasterAdapter:
             },
         )
         meta["latent_pose_count"] = 21
+        meta["output_frame_count"] = int(num_frames)
+        meta["output_image_size"] = [int(width), int(height)]
         return CameraPayload(
             payload_type=payload_type,
             payload={"camera_embedding": embedding},

@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+import sys
+from dataclasses import asdict, replace
 from pathlib import Path
+from subprocess import CompletedProcess
 
+import numpy as np
 import pytest
 
 import wrbench
@@ -13,6 +16,7 @@ from wrbench.backends.base import GenerationRequest
 from wrbench.backends.launchers.easyanimate import build_easyanimate_command
 from wrbench.backends.launchers.minwm_hy import build_minwm_hy_command
 from wrbench.backends.launchers.minwm_wan import build_minwm_wan_command
+from wrbench.backends.launchers.recammaster import build_recammaster_command, validate_recammaster_runtime
 from wrbench.backends.launchers import launcher_spec, supported_models
 from wrbench.backends.registry import list_backends, resolve_backend
 from wrbench.backends.local_subprocess import LocalSubprocessBackend
@@ -25,12 +29,131 @@ def test_local_launcher_registry_contains_only_supported_models():
             "easyanimate-v51-camera",
             "minwm-hy-action2v",
             "minwm-wan-action2v",
+            "recammaster",
             "spatia",
         }
     )
     assert supported_models() == expected
     assert all(launcher_spec(model).key == model for model in expected)
     assert launcher_spec("worldcam") is None
+
+
+@pytest.fixture
+def recammaster_runtime(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModelRuntime:
+    monkeypatch.chdir(tmp_path)
+    repo = Path("ReCamMaster")
+    (repo / "diffsynth" / "pipelines").mkdir(parents=True)
+    (repo / "diffsynth" / "pipelines" / "wan_video_recammaster.py").write_text("# stub\n")
+    py = Path("venv/bin/python")
+    py.parent.mkdir(parents=True)
+    py.symlink_to(sys.executable)
+    checkpoint = Path("step20000.ckpt")
+    checkpoint.write_bytes(b"checkpoint")
+    wan = Path("Wan2.1-T2V-1.3B")
+    (wan / "google" / "umt5-xxl").mkdir(parents=True)
+    for name in ("diffusion_pytorch_model.safetensors", "models_t5_umt5-xxl-enc-bf16.pth", "Wan2.1_VAE.pth"):
+        (wan / name).write_bytes(b"weights")
+    Path("source.mp4").write_bytes(b"video")
+    return ModelRuntime(
+        key="recammaster", python_bin=str(py), repo_root=str(repo),
+        model_path=str(checkpoint), gpu_id=3,
+        extra_paths={
+            "wan_model_dir": str(wan), "negative_prompt": "",
+            "cfg_scale": "5.0", "num_inference_steps": "50", "seed": "42", "tiled": "true",
+        },
+    )
+
+
+@pytest.mark.parametrize("negative_prompt", ["", "--bad quality"])
+def test_build_recammaster_command_uses_compiled_embedding(recammaster_runtime, negative_prompt):
+    runtime = replace(
+        recammaster_runtime,
+        extra_paths={**recammaster_runtime.extra_paths, "negative_prompt": negative_prompt},
+    )
+    embedding = np.zeros((1, 21, 12), dtype=np.float32)
+    assert validate_recammaster_runtime(runtime) == []
+    cmd, cwd, env, camera_path = build_recammaster_command(
+        model="recammaster", payload={"camera_embedding": embedding},
+        runtime=runtime, source_video_path=Path("source.mp4"), prompt="A scene.", output_path=Path("out.mp4"),
+        width=832, height=480, num_frames=81, fps=16,
+    )
+    assert cwd == Path.cwd() / runtime.repo_root
+    assert cmd[0] == str(Path.cwd() / runtime.python_bin)
+    assert cmd[cmd.index("--wan-model-dir") + 1] == str(Path.cwd() / runtime.extra_paths["wan_model_dir"])
+    assert env["CUDA_VISIBLE_DEVICES"] == "3"
+    np.testing.assert_array_equal(np.load(camera_path), embedding)
+    assert f"--negative-prompt={negative_prompt}" in cmd
+
+
+def test_recammaster_generation_preserves_fps_and_distinguishes_output_from_control_frames(
+    recammaster_runtime, monkeypatch,
+):
+    runtime_config = Path("runtime.json")
+    runtime_config.write_text(json.dumps({"schema_version": 1, "models": {"recammaster": asdict(recammaster_runtime)}}))
+
+    def fake_run(cmd, *, cwd, env, capture_output, text):
+        assert Path(cwd) == Path.cwd() / recammaster_runtime.repo_root
+        assert cmd[cmd.index("--fps") + 1] == "24"
+        assert cmd[cmd.index("--num-frames") + 1] == "81"
+        assert "--prompt=A scene." in cmd
+        Path(cmd[cmd.index("--output") + 1]).write_bytes(b"generated video")
+        return CompletedProcess(cmd, 0)
+
+    monkeypatch.setattr("wrbench.backends.local_subprocess.subprocess.run", fake_run)
+    result = wrbench.compile_camera(
+        model="recammaster", camera="yaw:left:30@81", source_video="source.mp4", prompt="A scene.",
+        out="output.mp4", fps=24, runtime_config=runtime_config, dry_run=False,
+    )
+    sidecar = json.loads(Path("output.mp4.camera.json").read_text())
+    assert sidecar["fps"] == 24
+    assert sidecar["model_frame_count"] == sidecar["generated_frame_count"] == 81
+    assert sidecar["model_control_timeline"]["control_sample_count"] == 21
+    assert np.load(result["generation"]["artifacts"]["camera_embedding"]).shape == (1, 21, 12)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [({"width": 960}, "requires 832x480 and 81 frames"),
+     ({"num_frames": 97}, "requires 832x480 and 81 frames"),
+     ({"source_video": "missing.mp4"}, "source video not found")],
+)
+def test_recammaster_rejects_invalid_generation_inputs(recammaster_runtime, overrides, message):
+    runtime_config = Path("runtime.json")
+    runtime_config.write_text(json.dumps({"schema_version": 1, "models": {"recammaster": asdict(recammaster_runtime)}}))
+    inputs = {"source_video": "source.mp4", **overrides}
+    with pytest.raises(ValueError, match=message):
+        wrbench.compile_camera(
+            model="recammaster", camera="yaw:left:30@81", prompt="A scene.", out="output.mp4",
+            runtime_config=runtime_config, dry_run=False, **inputs,
+        )
+
+
+def test_recammaster_runtime_requires_wan_tokenizer(recammaster_runtime):
+    (Path(recammaster_runtime.extra_paths["wan_model_dir"]) / "google" / "umt5-xxl").rmdir()
+    assert validate_recammaster_runtime(recammaster_runtime) == ["extra_paths.wan_model_dir (google/umt5-xxl tokenizer)"]
+
+
+def test_recammaster_preserves_existing_video_and_sidecar_on_retry(recammaster_runtime):
+    output = Path("already-generated.mp4")
+    sidecar = Path(f"{output}.camera.json")
+    output.write_bytes(b"original video")
+    sidecar.write_text('{"camera_script": "yaw:left:30@81"}')
+    with pytest.raises(FileExistsError, match="Choose a new --out path"):
+        wrbench.compile_camera(
+            model="recammaster", camera="yaw:right:30@81", source_video="source.mp4",
+            prompt="A scene.", out=output, dry_run=False,
+        )
+    assert output.read_bytes() == b"original video"
+    assert json.loads(sidecar.read_text())["camera_script"] == "yaw:left:30@81"
+
+
+def test_recammaster_rejects_nonfinite_camera_embedding(recammaster_runtime):
+    with pytest.raises(ValueError, match="21 finite relative poses"):
+        build_recammaster_command(
+            model="recammaster", payload={"camera_embedding": np.full((1, 21, 12), np.nan)},
+            runtime=recammaster_runtime, source_video_path=Path("source.mp4"), prompt="A scene.",
+            output_path=Path("out.mp4"), width=832, height=480, num_frames=81, fps=16,
+        )
 
 
 def test_resolve_backend_defaults_to_dry_run_without_runtime():

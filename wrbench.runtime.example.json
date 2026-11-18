@@ -51,6 +51,20 @@
         "sigma_shift": "5.0",
         "seed": "20917"
       }
+    },
+    "recammaster": {
+      "python_bin": "/path/to/recammaster/venv/bin/python",
+      "repo_root": "/path/to/ReCamMaster",
+      "model_path": "/path/to/ReCamMaster-Wan2.1/step20000.ckpt",
+      "gpu_id": 0,
+      "extra_paths": {
+        "wan_model_dir": "/path/to/Wan2.1-T2V-1.3B",
+        "negative_prompt": "",
+        "cfg_scale": "5.0",
+        "num_inference_steps": "50",
+        "seed": "42",
+        "tiled": "true"
+      }
     }
   },
   "eval": {
