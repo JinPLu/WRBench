@@ -66,6 +66,8 @@ For visual integrity alone, run `wrbench eval --runtime-config wrbench.runtime.j
 
 For HyDRA's published 154-frame clips, `eval pose` recovers motion from the generated continuation (frames `[77,154)`, zero-based) and saves the segment alongside the poses. D2–D6 use all 154 frames. For the frozen HyDRA CamPrec protocol, run `python -m wrbench.eval.d1.run_vggt_omega_pose --help` to extract poses from the full MP4 into a separate cache, then run `eval d1 --target-mode requested_profile` against the original row. D1 selects the last 77 poses from that cache. See the [release's HyDRA policy](../../src/wrbench/data/natural25/releases/paper_main_20260608/hydra_evaluation_policy.json).
 
+For Qwen reproduction settings and per-probe reference scores, see the [Hunyuan WorldPlay D3 and LiveWorld D4 replays](hunyuan-d3-replay.md).
+
 ## Run individual stages
 
 The combined command is the normal entry point. Individual stages are available for resuming or debugging an existing run:
