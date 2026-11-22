@@ -910,7 +910,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--input_jsonl", "--input-jsonl", "--input", dest="input_jsonl", required=True)
     parser.add_argument("--output_jsonl", "--output-jsonl", "--output", dest="output_jsonl", required=True)
     parser.add_argument("--summary_csv", "--summary-csv", dest="summary_csv", required=True)
-    parser.add_argument("--megasam_cache_root", "--megasam-cache-root", "--pose-cache-root", dest="pose_cache_root", required=True)
+    parser.add_argument("--pose-cache-root", "--pose_cache_root", "--megasam-cache-root", "--megasam_cache_root", dest="pose_cache_root", required=True)
     parser.add_argument("--pose-backend", default=d["pose_backend"])
     parser.add_argument("--poses_file", "--poses-file", dest="poses_file", default=d["poses_file"])
     parser.add_argument("--default_frames", "--default-frames", dest="default_frames", type=int, default=d["default_frames"])

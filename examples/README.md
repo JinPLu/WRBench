@@ -55,4 +55,4 @@ wrbench generate \
   --out /tmp/wrbench_demo/yaw_37.mp4
 ```
 
-Run `wrbench doctor --model wan22-fun-5b-cam` to validate the model record and adapter. For real generation, continue with [the backend guide](../docs/backends/README.md). For the frozen paper source contract, use the commands maintained in its [versioned release README](../src/wrbench/data/natural25/releases/paper_main_20260608/README.md).
+Run `wrbench doctor --model wan22-fun-5b-cam` to validate the model record and adapter. For real generation and external model integration, continue with [Generation backends](../docs/backends/README.md) and [Integrating models and evaluators](../docs/plugins.md). For the frozen paper source contract, use the commands maintained in its [versioned release README](../src/wrbench/data/natural25/releases/paper_main_20260608/README.md).

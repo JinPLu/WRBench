@@ -1,0 +1,63 @@
+name: Score Reproduction Question (D1–D6)
+description: Ask about reproducing released D1–D6 scores on Natural-25 or published WRBench videos.
+title: "[Reproduction]: "
+labels: ["reproduction"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before opening a Qwen D3/D4 reproduction issue, please check [`docs/eval/hunyuan-d3-replay.md`](https://github.com/JinPLu/WRBench/blob/main/docs/eval/hunyuan-d3-replay.md) and run `wrbench doctor --eval --runtime-config wrbench.runtime.json` (which flags `transformers>=5.22` boundary-token shifts and `QWEN35_VISION_BOUNDARY_MODE`).
+
+  - type: dropdown
+    id: dimension
+    attributes:
+      label: Target evaluation dimension
+      options:
+        - D1-CamPrec
+        - D1-CamAlign
+        - D2 (Visual Integrity)
+        - D3 (Visible Spatial Consistency)
+        - D4 (Visible State Consistency)
+        - D5 (Re-observation Spatial Consistency)
+        - D6 (Re-observation Event-State Consistency)
+        - Multiple / Full D1–D6 Pipeline
+    validations:
+      required: true
+
+  - type: textarea
+    id: video_info
+    attributes:
+      label: video_id and MP4 SHA-256
+      description: Include the exact `video_id` from `videos_master.jsonl`, the local MP4 SHA-256 (`sha256sum`), and whether `world_state_prompt` was preserved verbatim.
+      placeholder: |
+        video_id: hunyuan_worldplay__living_room_adult_sofa_sit__T2_div_b__none__static
+        sha256: c651a8b18a9950e2c775860b28ee1cb3170ff18de0ef7e029b1e88bc9b864769
+        world_state_prompt preserved: yes
+    validations:
+      required: true
+
+  - type: textarea
+    id: env_versions
+    attributes:
+      label: Scorer environment versions
+      description: Report `transformers`, `torch`, `torchvision`, `tokenizers`, `decord`, `flash-attn`, GPU/CUDA, and `QWEN35_VISION_BOUNDARY_MODE` (or paste `wrbench doctor --eval --runtime-config ...`).
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: checkpoint_hash
+    attributes:
+      label: Scorer checkpoint / snapshot revision
+      description: Exact commit hash or local checkpoint identifier for VGGT-Omega, DINOv2, Qwen3.5-9B, or Qwen3-VL.
+      placeholder: "Qwen/Qwen3.5-9B@c202236"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scores
+    attributes:
+      label: Reference vs. observed score
+      description: Include the released reference score, your observed score, any custom scorer profile or overrides, and the exact command run.
+    validations:
+      required: true

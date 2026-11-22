@@ -1,0 +1,90 @@
+name: New Model Integration or Leaderboard Submission
+description: Propose a new model plugin/adapter or submit evaluated Natural-25 scores for the WRBench Leaderboard.
+title: "[Model / Leaderboard]: "
+labels: ["model-submission"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You can evaluate a model on WRBench without modifying WRBench source files by exporting Natural-25 tasks (`wrbench tasks export` → generate → `wrbench eval validate` → `wrbench eval run`) or using a declarative `--model-spec` with `command_template`. See [`docs/plugins.md`](https://github.com/JinPLu/WRBench/blob/main/docs/plugins.md).
+
+  - type: dropdown
+    id: request_type
+    attributes:
+      label: Request type
+      options:
+        - Leaderboard score submission (Natural-25)
+        - New model plugin / adapter
+        - Both (model plugin + leaderboard scores)
+    validations:
+      required: true
+
+  - type: textarea
+    id: model_details
+    attributes:
+      label: Model name and links
+      description: Official model name, checkpoint/version identifier, paper or repository URL.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: modality
+    attributes:
+      label: Model input modality
+      options:
+        - T2V
+        - TI2V
+        - TV2V
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: paradigm
+    attributes:
+      label: Viewpoint-conditioning paradigm
+      description: Match the taxonomy used in the WRBench paper and leaderboard.
+      options:
+        - source-video
+        - geometry-cache
+        - model-inferred
+        - prompt-only
+    validations:
+      required: true
+
+  - type: dropdown
+    id: integration_path
+    attributes:
+      label: Integration path
+      options:
+        - External video evaluation (wrbench tasks export + eval)
+        - Declarative spec + command_template (--model-spec)
+        - Python plugin (entry_points / module:callable)
+        - Built-in adapter PR
+    validations:
+      required: false
+
+  - type: textarea
+    id: validation_status
+    attributes:
+      label: Manifest validation & Natural-25 release status
+      description: Paste `wrbench eval validate --manifest <path> --json` output (or `wrbench doctor --model <key>`), plus Natural-25 release ID and video count.
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: d1_d6_scores
+    attributes:
+      label: Evaluated D1–D6 scores (if submitting to leaderboard)
+      description: Report D1-CamPrec or D1-CamAlign, D2, D3, D4, D5, D6, scorer profile (default `wrbench_default`), scorer environment versions, and links to `main_table.md` / generated videos.
+      placeholder: |
+        scorer_profile: wrbench_default (default)
+        D1-CamPrec / D1-CamAlign: ...
+        D2: ...
+        D3: ...
+        D4: ...
+        D5: ...
+        D6: ...
+    validations:
+      required: false

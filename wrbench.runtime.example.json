@@ -65,6 +65,29 @@
         "seed": "42",
         "tiled": "true"
       }
+    },
+    "my-custom-model": {
+      "backend": "command_template",
+      "python_bin": "/path/to/my-model/venv/bin/python",
+      "repo_root": "/path/to/MyWorldModel",
+      "model_path": "/path/to/MyWorldModel/checkpoint",
+      "gpu_id": 0,
+      "command_template": [
+        "{python_bin}",
+        "{repo_root}/infer.py",
+        "--checkpoint",
+        "{model_path}",
+        "--prompt",
+        "{prompt}",
+        "--image",
+        "{image_path}",
+        "--poses",
+        "{target_c2w_path}",
+        "--payload-json",
+        "{payload_json_path}",
+        "--out",
+        "{output_path}"
+      ]
     }
   },
   "eval": {
@@ -77,59 +100,7 @@
       "dinov2_model_path": "/path/to/models/dinov2-local-model",
       "qwen_scorer_python": "/path/to/your-qwen-scorer-venv/bin/python",
       "qwen35_model": "/path/to/models/qwen35-local-model",
-      "qwen3vl_model": "/path/to/models/qwen3vl-local-model",
-      "extra_paths": {
-        "d1_pose_backend": "vggt_omega",
-        "d1_poses_file": "poses.npy",
-        "d1_default_frames": "121",
-        "d1_predicted_pose_type": "c2w",
-        "d1_predicted_camera_convention": "opencv",
-        "d1_target_camera_convention": "opencv",
-        "d1_rot_scale_deg": "45.0",
-        "d1_trans_scale": "1.0",
-        "d1_yaw_weak_threshold_deg": "2.0",
-        "d1_pan_weak_threshold": "0.0001",
-        "d1_static_rot_threshold_deg": "2.0",
-        "d1_static_trans_threshold": "0.05",
-        "d1_vggt_execution_mode": "subprocess",
-        "d1_vggt_image_resolution": "512",
-        "d1_vggt_preprocess_mode": "balanced",
-        "d1_vggt_cwd": "/path/to/wrbench",
-        "d1_vggt_shard_index": "0",
-        "d1_vggt_num_shards": "1",
-        "d2_device": "cuda:0",
-        "d2_sample_policy": "time_fps",
-        "d2_sample_fps": "3.0",
-        "d2_min_frames": "4",
-        "d2_max_frames": "24",
-        "d2_batch_size": "4"
-      },
-      "env": {
-        "FORCE_QWENVL_VIDEO_READER": "1",
-        "WORLD_STATE_VIDEO_BACKEND": "decord",
-        "RUN_TAG": "wrbench_eval",
-        "PROMPT_MODE": "runtime_v2_probe_logprob_p25_d3d4_slot_parse",
-        "TASK_CONTEXT_MODE": "none",
-        "NUM_SHARDS": "1",
-        "SHARD_IDS": "0",
-        "CUDA_DEVICES_CSV": "0",
-        "FPS": "2",
-        "PROGRESS_EVERY": "25",
-        "SKIP_EXISTING": "0",
-        "QWEN35_VLM_NAME": "local_qwen35_runtime_v2_probe_logprob",
-        "QWEN35_LOADER_FAMILY": "auto",
-        "QWEN35_DTYPE": "bfloat16",
-        "QWEN35_ATTN_IMPLEMENTATION": "flash_attention_2",
-        "QWEN35_NUM_SAMPLES": "1",
-        "QWEN35_MAX_VIDEOS": "0",
-        "QWEN35_EVIDENCE_CONTEXT_MODE": "visibility_v1",
-        "QWEN3VL_DTYPE": "bfloat16",
-        "QWEN3VL_ATTN_IMPLEMENTATION": "flash_attention_2",
-        "QWEN3VL_MAX_NEW_TOKENS": "768",
-        "QWEN3VL_MAX_VIDEOS": "0",
-        "QWEN3VL_BINARY_PROMPT_SCHEMA": "subject_judgeability_v1",
-        "QWEN3VL_RESCUE_PROMPT_SCHEMA": "guarded_teacher_gate_v3"
-      }
+      "qwen3vl_model": "/path/to/models/qwen3vl-local-model"
     }
   }
 }

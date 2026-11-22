@@ -37,7 +37,7 @@ try:
         CAMERA_MOTION_CONTEXT_KEY,
         DEFAULT_PROMPT_MODE,
         PROMPT_MODE_P25_D3D4_SLOT_PARSE,
-        PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+        PROMPT_MODE_WRBENCH_PAPER,
         PROBE_CATALOG_VERSION,
         RUNTIME_V2_PROBE_CATALOG,
         SUPPORTED_PROMPT_MODES,
@@ -49,12 +49,15 @@ try:
     )
     from .runtime_common import (
         META_KEYS,
+        capture_scorer_version_metadata,
         cuda_build_or_unavailable as _cuda_build_or_unavailable,
         derive_frames_used_from_processor_inputs,
+        detect_or_align_vision_boundary_tokens,
         explicit_cuda_placement_metadata,
         index_by_video_id as _index_by_video_id,
         load_model_explicit_cuda,
         model_config_model_type,
+        resolve_vision_boundary_mode,
         version_or_unavailable as _version_or_unavailable,
     )
 except ImportError:
@@ -62,7 +65,7 @@ except ImportError:
         CAMERA_MOTION_CONTEXT_KEY,
         DEFAULT_PROMPT_MODE,
         PROMPT_MODE_P25_D3D4_SLOT_PARSE,
-        PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+        PROMPT_MODE_WRBENCH_PAPER,
         PROBE_CATALOG_VERSION,
         RUNTIME_V2_PROBE_CATALOG,
         SUPPORTED_PROMPT_MODES,
@@ -74,12 +77,15 @@ except ImportError:
     )
     from wrbench.eval.scoring.runtime_common import (
         META_KEYS,
+        capture_scorer_version_metadata,
         cuda_build_or_unavailable as _cuda_build_or_unavailable,
         derive_frames_used_from_processor_inputs,
+        detect_or_align_vision_boundary_tokens,
         explicit_cuda_placement_metadata,
         index_by_video_id as _index_by_video_id,
         load_model_explicit_cuda,
         model_config_model_type,
+        resolve_vision_boundary_mode,
         version_or_unavailable as _version_or_unavailable,
     )
 
@@ -699,6 +705,11 @@ def export_v7_style_probe_record(
         "runtime_v2_d6_raw_score": row.get("d6_state_oov_score"),
         "runtime_v2_d5_score_available": row.get("d5_spatial_oov_score") is not None,
         "runtime_v2_d6_score_available": row.get("d6_state_oov_score") is not None,
+        **(
+            {"vision_boundary_aligned": bool(row["vision_boundary_aligned"])}
+            if "vision_boundary_aligned" in row
+            else {}
+        ),
     }
 
 
@@ -796,6 +807,10 @@ class LocalQwen35ProbeLogprobScorer:
         self.no_token_ids: set[int] = set()
         self.tokenizer_probe: dict[str, Any] | None = None
         self.apply_chat_template_kwargs: dict[str, Any] = {}
+        self.vision_boundary_mode = resolve_vision_boundary_mode()
+        self.vision_boundary_aligned = False
+        self.extra_vision_boundary_tokens_detected = False
+        self._vision_boundary_warned = False
         if dry_run:
             return
         import torch  # type: ignore
@@ -895,6 +910,9 @@ class LocalQwen35ProbeLogprobScorer:
             "yes_token_ids": sorted(self.yes_token_ids),
             "no_token_ids": sorted(self.no_token_ids),
             "tokenizer_candidate_probe": self.tokenizer_probe,
+            "vision_boundary_mode": self.vision_boundary_mode,
+            "vision_boundary_aligned": self.vision_boundary_aligned,
+            "extra_vision_boundary_tokens_detected": self.extra_vision_boundary_tokens_detected,
         }
 
     def _score_probe(self, item: dict[str, Any], probe: RuntimeV2Probe) -> tuple[dict[str, Any], int, dict[str, float]]:
@@ -929,6 +947,18 @@ class LocalQwen35ProbeLogprobScorer:
             messages,
             **deepcopy(self.apply_chat_template_kwargs),
         )
+        inputs, boundary_info = detect_or_align_vision_boundary_tokens(
+            inputs,
+            processor=self.processor,
+            mode=self.vision_boundary_mode,
+        )
+        if boundary_info["extra_boundary_tokens_detected"]:
+            self.extra_vision_boundary_tokens_detected = True
+        if boundary_info["vision_boundary_aligned"]:
+            self.vision_boundary_aligned = True
+        if boundary_info.get("warning") and not self._vision_boundary_warned:
+            self._vision_boundary_warned = True
+            print(f"[warning] {boundary_info['warning']}", file=sys.stderr, flush=True)
         processor_done = time.perf_counter()
         frames_used = derive_frames_used_from_processor_inputs(inputs, self.processor)
         device = next(self.model.parameters()).device
@@ -971,6 +1001,8 @@ class LocalQwen35ProbeLogprobScorer:
                 prompt_mode=self.prompt_mode,
             )
             row["runtime_v2_task_context_mode"] = self.task_context_mode
+            row["vision_boundary_mode"] = self.vision_boundary_mode
+            row["vision_boundary_aligned"] = self.vision_boundary_aligned
             return row
         probe_results: dict[str, dict[str, Any]] = {}
         frames_seen: list[int] = []
@@ -988,6 +1020,8 @@ class LocalQwen35ProbeLogprobScorer:
             prompt_mode=self.prompt_mode,
         )
         row["runtime_v2_task_context_mode"] = self.task_context_mode
+        row["vision_boundary_mode"] = self.vision_boundary_mode
+        row["vision_boundary_aligned"] = self.vision_boundary_aligned
         row["runtime_v2_probe_timing_rows"] = timing_rows
         row["runtime_v2_timing_seconds"] = {
             "processor": round(sum(float(t["processor_seconds"]) for t in timing_rows), 6),
@@ -1076,9 +1110,7 @@ def build_run_config(
         "loader_family": str(args.loader_family),
         "model_config_model_type": model_config_model_type(args.model_path),
         "python_path": sys.executable,
-        "transformers_version": _version_or_unavailable("transformers"),
-        "torch_version": _version_or_unavailable("torch"),
-        "cuda_build": _cuda_build_or_unavailable(),
+        **capture_scorer_version_metadata(),
         "torch_dtype": args.dtype,
         "attn_implementation": args.attn_implementation,
         "video_sampling_policy": (
@@ -1159,6 +1191,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "--prompt-mode must be one of: "
             + ", ".join(sorted(SUPPORTED_PROMPT_MODES))
         )
+    args.prompt_mode = validate_prompt_mode(args.prompt_mode)
     if args.prompt_mode == PROMPT_MODE_P25_D3D4_SLOT_PARSE:
         if args.task_context_mode != TASK_CONTEXT_MODE_NONE:
             parser.error(
@@ -1170,15 +1203,13 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             )
     if args.strict_manifest_contract:
         strict_profile_pairs = {
-            (PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED, TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA),
             (PROMPT_MODE_P25_D3D4_SLOT_PARSE, TASK_CONTEXT_MODE_NONE),
         }
         if (args.prompt_mode, args.task_context_mode) not in strict_profile_pairs:
             parser.error(
                 "--strict-manifest-contract requires a supported prompt/context profile: "
-                f"{PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED} + "
-                f"{TASK_CONTEXT_MODE_ALL_MANIFEST_METADATA}, or "
-                f"{PROMPT_MODE_P25_D3D4_SLOT_PARSE} + {TASK_CONTEXT_MODE_NONE}"
+                f"{PROMPT_MODE_WRBENCH_PAPER} (or {PROMPT_MODE_P25_D3D4_SLOT_PARSE}) + "
+                f"{TASK_CONTEXT_MODE_NONE}"
             )
         if args.skip_existing:
             parser.error("--strict-manifest-contract does not allow --skip-existing")

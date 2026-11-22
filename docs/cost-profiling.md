@@ -1,6 +1,6 @@
 # Generation resource profiling
 
-`wrbench.profiling` records **wall time**, **stage-level timing**, and **peak GPU memory** for generation commands. This is producer-side observability for fair speed/cost comparison — not D1-D6 scoring.
+`wrbench.profiling` records **wall time**, **stage-level timing**, and **peak GPU memory** for generation commands. This is producer-side observability for speed and cost comparison, separate from D1–D6 evaluation.
 
 ## Fair headline metric
 
@@ -67,20 +67,14 @@ Profiling is **stdlib-only** plus optional `nvidia-smi` on PATH for GPU sampling
 
 `wrbench profile` writes the resource summary for the runs you record. WRBench
 does not bundle a hardware-specific cost table because GPU type, runtime stack,
-and model revisions change the result.
+and model revisions affect throughput.
 
-Headline metric: `gpu_seconds_per_output_second` (preprocess+inference only; model load
-reported separately). Rows with `generation_status != generated` are excluded from the
-denominator.
-
-**Single-sample caveat:** each model/profile row reflects one smoke-task run (typically
-one scene × two yaw directions). Treat cross-model ordering as indicative, not a rigorous
-benchmark. `gpu_seconds_per_output_second` multiplies benchmark wall time by `gpu_width`
-(GPUs visible to the job via `CUDA_VISIBLE_DEVICES`).
-
-**Out of scope for v1 cost table:** `sana-wm`, `minwm-hy-action2v`,
-`matrix-game-2`, `hunyuanworld-voyager`, and `hyworld-worldgen` did not have a
-maintained public smoke-task harness in this cost snapshot.
+Headline metric: `gpu_seconds_per_output_second` (preprocess + inference only;
+model load is reported separately). Rows with `generation_status != "generated"`
+are excluded from the denominator, and `gpu_seconds_per_output_second`
+multiplies benchmark wall time by `gpu_width` (GPUs visible via
+`CUDA_VISIBLE_DEVICES`). When profiling a small smoke sample rather than a full
+benchmark sweep, treat cross-model ordering as indicative.
 
 Summarize saved profiles with WRBench:
 

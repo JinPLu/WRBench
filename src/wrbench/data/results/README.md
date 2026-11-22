@@ -1,14 +1,12 @@
 # Published results
 
-This directory contains reference results, not inputs to a required generation workflow.
+This directory bundles the frozen WRBench reference tables for inspection and reproducibility. Run `wrbench eval run` on your own videos to generate fresh evaluation tables; do not append new rows to the frozen paper files.
 
 | File | Purpose |
 | --- | --- |
-| `wrbench_23model_results.csv` | Frozen 23-model paper table |
-| `wrbench_23model_results.json` | The same table with machine-readable column metadata |
+| `wrbench_23model_results.csv` | Frozen 23-model paper table (9,600 videos) |
+| `wrbench_23model_results.json` | Machine-readable paper table with column metadata |
 | `wrbench_t2v_results.json` | Separate prompt-only T2V addendum |
-
-Run `wrbench eval run` on your own videos to produce fresh scores. Do not append new rows to the frozen paper table.
 
 ## Identity columns
 
@@ -18,19 +16,15 @@ Run `wrbench eval run` on your own videos to produce fresh scores. Do not append
 | `display_name` | Human-readable name |
 | `viewpoint_condition_type` | How the requested viewpoint is supplied: `source-video`, `geometry-cache`, `model-inferred`, or `prompt-only` |
 | `model_input` | Input modality: `T2V`, `TI2V`, or temporal `TV2V` |
-| `paper_group` | Deprecated grouping retained only in the frozen artifact |
-| `source_group` | Deprecated provenance bucket retained only in the frozen artifact |
+| `paper_group` | Deprecated grouping retained only in the frozen paper artifact |
+| `source_group` | Deprecated provenance bucket retained only in the frozen paper artifact |
 
-`viewpoint_condition_type` and `model_input` describe different things. A source wrapper that only extracts frame 0 is `TI2V`; `input_kind: source_video` alone does not make a model temporal TV2V. New tables should derive both fields from the model registry rather than maintain a second mapping.
+`viewpoint_condition_type` and `model_input` capture independent axes. A wrapper that extracts only frame 0 is `TI2V` even if its runtime CLI accepts a source-video path. New result tables derive both fields from the model registry (or manifest metadata for custom models).
 
-The remaining columns are D1-CamPrec, D1-CamAlign, D2–D6, their sample counts, re-observation gate rate, low-count flags, metric notes, and the published aggregate. See [the evaluation guide](../../../../docs/eval/README.md) for metric semantics.
+The remaining columns report D1-CamPrec, D1-CamAlign, D2–D6, sample counts, re-observation gate rate, low-count flags, metric notes, and aggregates. See [the evaluation guide](../../../../docs/eval/README.md) for metric definitions.
 
 ## Frozen provenance
 
-The prompt, first-frame, camera-scope, TV2V-source, and HyDRA policies for the paper table are owned by the versioned [`paper_main_20260608`](../natural25/releases/paper_main_20260608/README.md) contract. The top-level Natural-25 variants are a current toolkit surface and must not be substituted for the frozen prompt-of-record.
+The exact prompts, first frames, camera scopes, TV2V sources, and HyDRA frame policy for the 23-model paper table live in [`paper_main_20260608`](../natural25/releases/paper_main_20260608/README.md). Rolling dataset updates are versioned separately on Hugging Face without modifying the frozen paper tables.
 
-The paper aggregate and its 9,600-row attestation stay frozen. Corrected assets or per-video metadata must be published on a separately versioned rolling surface; they do not silently replace the paper bytes or scores.
-
-Prompt-only T2V models use their own prompt profile, camera scope, and result file because they do not consume a first frame or temporal source video. They are not directly inserted into the frozen 23-model table.
-
-Public downloads and the leaderboard are linked once from the repository [README](../../../../README.md).
+Prompt-only T2V models use their own prompt profile, camera scope, and result file (`wrbench_t2v_results.json`) because they do not consume a first frame or temporal source video. Public downloads and the interactive leaderboard are linked from the repository [README](../../../../README.md).

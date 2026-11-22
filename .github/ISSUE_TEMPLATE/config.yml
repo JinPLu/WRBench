@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Hugging Face Collection (Datasets, Paper & Results)
+    url: https://huggingface.co/collections/WRBench/wrbench-current-world-models-lack-a-persistent-state-core
+    about: Natural-25 inputs, generated videos, per-video scores, human annotations, and rolling results.
+  - name: WRBench Leaderboard
+    url: https://huggingface.co/spaces/WRBench/wrbench-leaderboard
+    about: Interactive comparison of released model results across D1–D6.
+  - name: Paper (arXiv:2606.20545)
+    url: https://arxiv.org/abs/2606.20545
+    about: Benchmark design, evaluation protocol, and 23-model paper findings.

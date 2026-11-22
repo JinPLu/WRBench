@@ -245,7 +245,7 @@ wrbench.presets.go_return("dolly", "forward", "back", 1.0, frames=81)
 
 ## Three-layer contract
 
-wrbench compiles camera control through three named layers:
+WRBench compiles camera control through three named layers:
 
 ### Layer 1 — `frame_action_script`
 
@@ -288,4 +288,4 @@ record = wrbench.model_record("wan22-fun-5b-cam")
 print(record.amplitude)
 ```
 
-Valid `translation_unit` values are defined in `registry.py` (`VALID_TRANSLATION_UNITS`). Adapters may interpret the translation unit to pick the correct coordinate conversion path.
+Built-in `translation_unit` values are defined in `registry.py` (`VALID_TRANSLATION_UNITS`), along with `"none"`, `"custom:<name>"`, and units registered via `register_translation_unit(...)`. Adapters may interpret the translation unit to pick the correct coordinate conversion path.

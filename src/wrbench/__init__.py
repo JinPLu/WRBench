@@ -1,21 +1,30 @@
-"""WRBench: out-of-the-box unified camera control for video-generation models.
+"""WRBench: unified camera control, pluggable generation, and D1-D6 evaluation for video world models.
 
 Quickstart::
 
     import wrbench
     from wrbench.datasets import natural25_first_frame_path
 
-    # Preset combination
-    wrbench.compile_camera(model="wan22-fun-5b-cam", camera="yaw:left:60@40,yaw:right:60@41",
-                            image=natural25_first_frame_path("bedroom_cat_bed_jump"), out="out.mp4")
+    # Preset combination (compile-only by default)
+    wrbench.compile_camera(
+        model="wan22-fun-5b-cam",
+        camera="yaw:left:60@40,yaw:right:60@41",
+        image=natural25_first_frame_path("bedroom_cat_bed_jump"),
+        out="out.mp4",
+    )
 
-    # Arbitrary angle, near-per-frame
+    # Arbitrary angle sweep
     script = wrbench.presets.sweep("yaw", "left", 37, frames=49)
-    wrbench.compile_camera(model="wan22-fun-5b-cam", camera=script, image=natural25_first_frame_path("bedroom_cat_bed_jump"), out="out.mp4")
+    wrbench.compile_camera(
+        model="wan22-fun-5b-cam",
+        camera=script,
+        image=natural25_first_frame_path("bedroom_cat_bed_jump"),
+        out="out.mp4",
+    )
 
 With ``dry_run=True`` this compiles the model-native payload and writes auditable
-sidecars without running any heavy model. See ``wrbench.backends`` for real
-generation hooks.
+sidecars without loading a model. See ``wrbench.backends`` for real generation
+hooks and ``wrbench.eval`` for D1-D6 diagnostic scoring.
 """
 
 from __future__ import annotations
@@ -28,7 +37,9 @@ from wrbench.registry import (
     all_records,
     canonical_model_key,
     deferred_model_keys,
+    load_model_spec_file,
     model_record,
+    register_model_record,
 )
 from wrbench.runner import compile_camera
 
@@ -57,4 +68,6 @@ __all__ = [
     "all_records",
     "active_model_keys",
     "deferred_model_keys",
+    "load_model_spec_file",
+    "register_model_record",
 ]

@@ -2,137 +2,86 @@
 
 ## Unreleased
 
-### Fixed
+### Added
 
-- **D2 visual integrity ([#10](https://github.com/JinPLu/WRBench/issues/10))**: use full-field DINOv2 and the paper's 3 fps / 24-frame preset. Verify the video checksum when the manifest provides one.
-- **D1 camera scoring ([#9](https://github.com/JinPLu/WRBench/issues/9))**: use CamAlign v2-lite, report common yaw across local and API models, and keep API static hold and nominal target diagnostics separate. Record segment provenance with poses so published HyDRA clips work without camera sidecars.
-- Replay paper CamPrec with `--target-mode requested_profile`, using the requested yaw or static target from the video manifest.
-- Resolve relative inputs for all stages of `eval run --video-root`. Validate the paper scorer settings and include the D3–D6 runner in the wheel.
+- **External model specs and plugin discovery**: register models without editing WRBench source via `--model-spec`, `WRBENCH_MODEL_DIRS`, top-level `model_spec_files` in `wrbench.runtime.json`, `wrbench.load_model_spec_file` / `wrbench.register_model_record`, and Python entry points (`wrbench.plugins` and `wrbench.eval_plugins`).
+- **Declarative and dynamic adapters**: built-in `declarative_pose`, `declarative_action`, and `prompt_camera` adapters configured in JSON specs, plus dynamic `module:callable` adapter resolution and extensible translation units (`none`, `custom:<name>`, `register_translation_unit`).
+- **Command-template and pluggable generation backends**: invoke any local model or API wrapper via `backend: "command_template"` with compiled payload and trajectory placeholders, or register custom backends and launchers (`register_generation_backend`, `register_launcher`, or `module:callable`).
+- **ReCamMaster video-to-video generation**: added the ReCamMaster adapter and subprocess launcher with compiled camera trajectories.
+- **External video evaluation workflow**: added `wrbench tasks export` to write standardized Natural-25 task packages (with optional compiled camera targets) and `wrbench eval validate` to verify manifests, video files, and optional SHA-256 digests before scoring.
+- **Plugin inspection and runtime diagnostics**: added `wrbench plugins` and extended `wrbench doctor --eval --runtime-config <path> [--json]` to check generation backends, evaluation scorer paths, custom backends, and Qwen/Transformers package versions.
+- **Qwen3.5 Transformers boundary-token guard ([#11](https://github.com/JinPLu/WRBench/issues/11))**: detect and optionally align the extra `<|vision_start|>` and `<|vision_end|>` tokens retained by newer `transformers` releases via `QWEN35_VISION_BOUNDARY_MODE` (`warn`, `strip_outer_markers`, `preserve`), and record runtime package versions with scores.
+- **Public paper prompt-mode alias**: added `--prompt-mode wrbench_paper` for the frozen D3–D6 paper probe prompt mode.
+- **Repository templates**: added GitHub issue forms (bug report, D1–D6 reproduction, new model or leaderboard submission) and a pull request checklist.
 
 ### Changed
 
-- Select pose, D2, and VLM backends in `eval.backends`. Custom backends use the same manifest and output contracts as built-in backends.
-- Share evaluation I/O and pose math, consolidate the result table builder, and remove obsolete scoring wrappers.
-- Add ReCamMaster video-to-video generation with compiled camera trajectories.
+- **Paper evaluation defaults**: `wrbench eval run` and `wrbench eval pose` apply the paper defaults for VGGT-Omega (`d1_vggt_max_frames=49`, `512` resolution, `balanced` preprocessing), DINOv2 (`PAPER_SAMPLING`), Qwen D3–D6 environment settings, and `gpu_id: 0` automatically. Minimal `wrbench.runtime.json` files need only local interpreter, repository, and checkpoint paths, and stages overridden via `eval.backends` do not require built-in scorer paths.
+- **Simplified `wrbench eval run` defaults**: `--scorer-profile` is optional (defaulting to `wrbench_default`, switching to `custom` when `eval.backends` overrides a stage, and accepting `default` as an alias), and `--sidecar-profile-gate` defaults to `main`.
+- **Pure-Python D3–D6 orchestrator**: `wrbench.eval.d3d6_pipeline` executes all D3–D6 stages directly in Python without requiring `bash`.
+- **Modular CLI layout**: split `wrbench.cli` into focused modules under `wrbench._cli/` while preserving existing CLI entry points and re-exports.
+- **Custom-model table aggregation**: `wrbench.eval.aggregate.build_main_table` aggregates models absent from the built-in registry using manifest metadata or fallback labels.
+- **Pluggable evaluators**: select custom `pose`, `d2`, and `vlm` backends in `eval.backends` under the same manifest and output contracts as built-in backends.
+- Shared evaluation I/O and pose math, consolidated the result table builder, and removed obsolete scoring and table wrappers.
+
+### Fixed
+
+- **D2 visual integrity ([#10](https://github.com/JinPLu/WRBench/issues/10))**: use full-field DINOv2 with the paper's 3 fps / 24-frame preset, and verify the video SHA-256 digest when the manifest provides one.
+- **D1 camera scoring ([#9](https://github.com/JinPLu/WRBench/issues/9))**: use CamAlign v2-lite, report common yaw across local and API models, keep API static hold and nominal target diagnostics separate, and record segment provenance with poses so published HyDRA clips work without camera sidecars.
+- Replay paper CamPrec with `--target-mode requested_profile`, using the requested yaw or static target from the video manifest.
+- Resolve relative paths across all stages of `eval run --video-root`, validate paper scorer settings, and bundle the D3–D6 runner in the package.
+- **CLI `--no-dry-run` pre-check**: run backend availability checks for all `input_kind` values (`image`, `source_video`, `none`) and load `model_spec_files` before model lookup.
+- **Open-source verification gate**: replaced the `rg`-dependent leak check in `scripts/oss_verify.sh` with a deterministic Python 3 scanner and isolated `PYTHONPATH` in standalone subprocess tests.
 
 ## 0.1.3 — 2026-07-13
 
 ### Changed
 
-- Model input, source usage, and viewpoint-condition metadata now come from the
-  model registry for all 23 paper rows, including reference-only API models.
-- LiveWorld and Spatia machine-readable results now correctly report TI2V
-  first-frame extraction rather than temporal TV2V.
-- Removed the byte-identical legacy Natural-25 variants copy; `variants.jsonl`
-  remains the only toolkit compatibility surface, while paper prompts stay in
-  the versioned release directory.
-- The current P25/P22 scorer profile is self-contained and no longer patches
-  historical prompt modules at runtime.
-- Single-GPU Qwen3.5 and Qwen3-VL loading no longer requires Accelerate through
-  an implicit `device_map`; runtime metadata records explicit CUDA placement.
-- The example Qwen3-VL output limit now matches the scorer default (`768`) so
-  structured evidence is not truncated by the published configuration.
-- Newcomer documentation now follows one install, compile, evaluate, and
-  optional-generate path instead of duplicating release and result details.
-- Restored the unmodified official Apache License 2.0 text and advanced the
-  package to 0.1.3 with CLI and build metadata sharing one version owner.
-- CI now runs the canonical OSS release gate on Python 3.12 while retaining
-  focused compatibility tests on Python 3.10 and 3.11.
-- The rolling videos index now carries the verified per-video D5/D6 values
-  that reproduce the frozen aggregates; video bytes and paper totals are
-  unchanged, and the release index records the immutable Hub tag.
-- EasyAnimate's 500 rolling rows now use the same current D3-D6 scoring
-  snapshot as the aggregate results; 59 index rows changed, while videos,
-  prompts, applicability masks, and the frozen paper table remain unchanged.
-- The human-annotation release now bundles the 106 exact reviewed videos needed
-  to resolve all 1,170 endpoints in the current recheck.
+- Unified model input, source usage, and viewpoint-conditioning metadata in the model registry for all 23 paper models (including reference-only API models), and corrected LiveWorld and Spatia machine-readable results to report `TI2V` first-frame extraction.
+- Removed duplicate legacy Natural-25 variants; `variants.jsonl` serves as the toolkit compatibility surface while frozen paper prompts live under the versioned release directory.
+- Made the default D3–D6 scorer profile self-contained without runtime patching of historical prompt modules, switched single-GPU Qwen3.5 / Qwen3-VL loading to explicit CUDA placement, and aligned the example Qwen3-VL `max_new_tokens` setting with the scorer default (`768`).
+- Streamlined newcomer documentation, restored the exact official Apache License 2.0 text, unified package/CLI version ownership, and wired CI to run `scripts/oss_verify.sh` on Python 3.12 with compatibility tests on Python 3.10–3.11.
+- Updated the separately versioned Hugging Face rolling videos index (verified per-video D5/D6 exports and EasyAnimate D3–D6 alignment) and human-annotation release bundle while keeping the frozen 9,600-row paper table unchanged.
 
 ## 0.1.2 — 2026-07-12
 
 ### Added
 
-- The exact 25-row first-frame generation catalog and SHA256-bound mapping
-  from every Natural-25 `family_id` to its bundled PNG.
-- Validation that the frozen prompt catalogs, first-frame catalog and bytes,
-  camera scope, and TV2V source-video map form one self-consistent release.
+- Bundled the 25-row first-frame generation catalog and SHA-256-bound mapping from every Natural-25 `family_id` to its PNG, plus cross-artifact release validation covering prompts, first frames, camera scope, and TV2V source-video mappings.
 
 ### Changed
 
-- First-frame metadata now cites the actual generation prompt catalog instead
-  of the current toolkit `families.jsonl` compatibility surface.
-- Release documentation distinguishes the immutable 9,600-row paper table
-  from corrected or newly added assets in the 11,100-row rolling dataset.
-- The frozen VerseCrafter row now discloses the 120 TI2V30 assets identified by
-  decoded-frame-0 lineage audit for replacement and rescoring on rolling v2.
-- Both issue-4 preparation branches are recorded as ancestors of `main`;
-  their already-landed content was not duplicated.
+- Updated first-frame provenance metadata to cite the exact generation prompt catalog rather than the toolkit `families.jsonl` compatibility surface.
+- Clarified the boundary between the immutable 9,600-row paper table and separately versioned rolling dataset releases, including documented caveats for the frozen VerseCrafter row.
 
 ## 0.1.1 — 2026-07-12
 
 ### Added
 
-- Immutable `paper_main_20260608` Natural-25 release contract with the exact
-  local-generation catalog and historical API source catalog, frozen camera
-  scope, a 100-row Wan2.7 I2V source manifest, and explicit HyDRA
-  segment/evaluator provenance.
-- Package loaders and validation for named Natural-25 paper releases.
-- Resumable `scripts/prepare_paper_tv2v_sources.py` source preparation with
-  plan, download, verify-only, SHA256 verification, and overwrite refusal.
+- Immutable `paper_main_20260608` Natural-25 release contract (local and API prompt catalogs, frozen camera scope, 100-row Wan2.7 I2V source manifest, and HyDRA segment/evaluator provenance) with package loaders, validators, and resumable `scripts/prepare_paper_tv2v_sources.py`.
 - Strict `task_variant_id` source-video task maps for Natural-25 generation.
-- Separate Natural-25 T2V prompt profile for prompt-only models that do not
-  receive a first-frame image.
-- Legacy pronoun-anchored prompt snapshot:
-  `src/wrbench/data/natural25/variants.legacy_pronoun_20260620.jsonl`.
-- T2V rotation-stress camera scope:
-  `src/wrbench/data/natural25/camera_scopes/t2v_rotation_stress_30_60.json`.
-- T2V intake acceptance helpers (`wrbench.t2v`) for subject/scene/action/camera
-  gates and minWM rotation-step calibration metadata.
-- T2V results placeholder table:
-  `src/wrbench/data/results/wrbench_t2v_results.json`.
+- Separate prompt-only T2V intake surface: `t2v_layout_anchor` prompt profile, `t2v_rotation_stress_30_60` camera scope, `wrbench.t2v` acceptance helpers, and `wrbench_t2v_results.json`.
 
 ### Changed
 
-- `variants.jsonl` remains available as the active deterministic toolkit
-  surface, while the local prompt-of-record and bounded historical API source
-  catalog live under `natural25/releases/paper_main_20260608/`.
-- Natural-25 generation accepts explicit `--source-video-task-map` and
-  `--source-video-root`, verifies each source once across camera cells, rejects
-  repeated-first-frame benchmark inputs, and records source provenance in the
-  generated row and camera sidecar.
-- Spatia and LiveWorld are classified as first-frame TI2V wrappers rather than
-  temporal TV2V; temporal source-video use remains explicit for Gen3C, HyDRA,
-  InSpatio World, and ReCamMaster.
-- Prompt-only T2V models use the separate `t2v_layout_anchor` prompt profile
-  and T2V event tails instead of mutating the compatibility prompt file.
-- Published 23-model results (`wrbench_23model_results.*`) now resolve prompt
-  provenance through the versioned local/API paper catalogs; the legacy
-  pronoun snapshot remains T2V-addendum compatibility metadata only.
-- README now links to `docs/eval/README.md` as the canonical public policy for
-  re-observation scoring and prompt-only T2V scope; per-model pages point users
-  to `wrbench doctor --model ...` instead of stale backend-status boilerplate.
+- Distinguished `variants.jsonl` (active toolkit surface) from the versioned paper catalogs under `natural25/releases/paper_main_20260608/`, and classified Spatia and LiveWorld as first-frame `TI2V` wrappers rather than temporal `TV2V`.
+- Added explicit `--source-video-task-map` / `--source-video-root` verification with provenance recording and rejected repeated-first-frame inputs for temporal source-video runs.
+- Linked `README.md` to `docs/eval/README.md` for canonical evaluation policies and pointed per-model docs to `wrbench doctor --model <key>`.
 
 ## 0.1.0 — 2026-06-17
 
 ### Added
 
-- D1 prompt-camera alignment (CamAlign) scorer: `wrbench eval d1-camalign` and `D1_camalign` contract/table column.
-- Backend dispatcher (`resolve_backend`) wired into `compile_camera` and CLI `--no-dry-run`.
-- `LocalSubprocessBackend` with reference launchers for `easyanimate-v51-camera` and `spatia`.
-- `wrbench.runtime.example.json` runtime configuration schema.
+- D1 prompt-camera alignment (CamAlign) scorer (`wrbench eval d1-camalign`) and `D1_camalign` contract/table column.
+- Backend dispatcher (`resolve_backend`) wired into `compile_camera` and CLI `--no-dry-run`, `LocalSubprocessBackend` with reference launchers for `easyanimate-v51-camera` and `spatia`, and `wrbench.runtime.example.json`.
 - WRBench D1–D6 evaluation package (`wrbench eval`) with metric contract, scorers, and `wrbench eval run` one-command pipeline.
-- Bundled Natural-25 prompts and published 23-model results in `src/wrbench/data/` (install-safe via package data).
-- Backend docs under `docs/backends/`.
-- Open-source verification script `scripts/oss_verify.sh`.
-- CI workflow, `CODE_OF_CONDUCT.md`, and `SECURITY.md`.
+- Bundled Natural-25 prompts, first frames, and published 23-model results in `src/wrbench/data/`, backend docs under `docs/backends/`, `scripts/oss_verify.sh`, CI workflow, `CODE_OF_CONDUCT.md`, and `SECURITY.md`.
 
 ### Changed
 
-- `.payload.json` is always written alongside sidecars (not dry-run only).
-- EasyAnimate launcher materializes `predict_v2v_control.py` instead of passing ineffective CLI flags.
-- Public docs adopt WRBench paper terminology (diagnostic dimensions, viewpoint condition types, re-observation support).
-- D3–D6 overlay scorers resolve the installed `wrbench.eval.scoring` package layout (no legacy metric tree required).
+- Always write `.payload.json` alongside sidecars, materialize `predict_v2v_control.py` for the EasyAnimate launcher, and resolve D3–D6 scorers from the installed `wrbench.eval.scoring` package layout.
+- Adopted canonical WRBench paper terminology across public docs (diagnostic dimensions, viewpoint-conditioning paradigms, re-observation support).
 
 ### Verified
 
-- Editable install + full pytest suite on Python 3.10–3.12.
-- `wrbench doctor`, dry-run `wrbench generate`, and `wrbench eval contract` work without a tracked runtime config file.
+- Editable install and full pytest suite on Python 3.10–3.12; `wrbench doctor`, dry-run `wrbench generate`, and `wrbench eval contract` run out of the box without a tracked runtime config file.

@@ -124,7 +124,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="pose_cache_root",
         required=True,
     )
-    parser.add_argument("--poses-file", "--poses_file", dest="poses_file", required=True)
+    parser.add_argument("--poses-file", "--poses_file", dest="poses_file", default="poses.npy")
     parser.add_argument(
         "--scorer-version",
         "--scorer_version",

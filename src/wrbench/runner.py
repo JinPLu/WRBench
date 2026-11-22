@@ -144,12 +144,15 @@ def compile_camera(
     the written artifact paths.
     """
 
+    runtime = load_runtime_config(Path(runtime_config)) if runtime_config is not None else None
     key = canonical_model_key(model)
     record = model_record(key)
     _require_inputs(key, image, source_video, prompt=prompt, dry_run=dry_run)
     out_path = Path(out)
-    if key == "recammaster" and not dry_run and out_path.exists():
-        raise FileExistsError(f"ReCamMaster output already exists: {out_path}. Choose a new --out path.")
+    contract = record.execution_contract or {}
+    policy = contract.get("wrbench_policy") if isinstance(contract.get("wrbench_policy"), dict) else {}
+    if bool(policy.get("refuse_overwrite_output")) and not dry_run and out_path.exists():
+        raise FileExistsError(f"{key} output already exists: {out_path}. Choose a new --out path.")
     width = int(width if width is not None else record.default_width)
     height = int(height if height is not None else record.default_height)
     fps = int(fps if fps is not None else record.default_fps)
@@ -199,7 +202,6 @@ def compile_camera(
         from wrbench.backends.base import GenerationRequest
         from wrbench.backends.registry import resolve_backend
 
-        runtime = load_runtime_config(Path(runtime_config)) if runtime_config is not None else None
         backend = resolve_backend(key, runtime=runtime)
         if getattr(backend, "name", "") == "dry_run":
             raise RuntimeError(
@@ -224,6 +226,19 @@ def compile_camera(
                 image_path=Path(image) if image else None,
                 source_video_path=Path(source_video) if source_video else None,
                 work_dir=Path(work_dir) if work_dir else out_path.parent,
+                extra={
+                    "payload_json_path": str(payload_path),
+                    "target_c2w_path": str(artifacts["target_pose_path"]),
+                    "camera_trajectory_json_path": str(artifacts["camera_trajectory_path"]),
+                    "camera_sidecar_path": str(artifacts["camera_sidecar_path"]),
+                    "model_control_samples_path": str(artifacts["model_control_samples_path"]),
+                    "artifacts": dict(artifacts),
+                    "width": width,
+                    "height": height,
+                    "fps": fps,
+                    "num_frames": frames,
+                    "camera_script": camera_str,
+                },
             )
         )
         generation = {

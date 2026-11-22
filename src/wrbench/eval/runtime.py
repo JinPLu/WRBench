@@ -20,12 +20,59 @@ from wrbench.runtime import (
 
 D3D6_SCORES = Path("final_exports/scores_v7_runtime_v2_evidence_first_gate_masked_export.json")
 
+DEFAULT_VGGT_EXTRA: dict[str, str] = {
+    "d1_vggt_execution_mode": "subprocess",
+    "d1_vggt_image_resolution": "512",
+    "d1_vggt_preprocess_mode": "balanced",
+    "d1_vggt_max_frames": "49",
+    "d1_vggt_cwd": ".",
+    "d1_vggt_shard_index": "0",
+    "d1_vggt_num_shards": "1",
+}
+
+DEFAULT_D2_EXTRA: dict[str, str] = {
+    "d2_device": "cuda:0",
+    "d2_sample_policy": "time_fps",
+    "d2_sample_fps": "3.0",
+    "d2_min_frames": "4",
+    "d2_max_frames": "24",
+    "d2_batch_size": "4",
+}
+
+DEFAULT_D3D6_ENV: dict[str, str] = {
+    "FORCE_QWENVL_VIDEO_READER": "1",
+    "WORLD_STATE_VIDEO_BACKEND": "decord",
+    "RUN_TAG": "wrbench_eval",
+    "PROMPT_MODE": "wrbench_paper",
+    "TASK_CONTEXT_MODE": "none",
+    "NUM_SHARDS": "1",
+    "SHARD_IDS": "0",
+    "CUDA_DEVICES_CSV": "0",
+    "FPS": "2",
+    "PROGRESS_EVERY": "25",
+    "SKIP_EXISTING": "0",
+    "QWEN35_VLM_NAME": "local_qwen35_runtime_v2_probe_logprob",
+    "QWEN35_LOADER_FAMILY": "auto",
+    "QWEN35_DTYPE": "bfloat16",
+    "QWEN35_ATTN_IMPLEMENTATION": "flash_attention_2",
+    "QWEN35_NUM_SAMPLES": "1",
+    "QWEN35_MAX_VIDEOS": "0",
+    "QWEN35_EVIDENCE_CONTEXT_MODE": "visibility_v1",
+    "QWEN35_VISION_BOUNDARY_MODE": "warn",
+    "QWEN3VL_DTYPE": "bfloat16",
+    "QWEN3VL_ATTN_IMPLEMENTATION": "flash_attention_2",
+    "QWEN3VL_MAX_NEW_TOKENS": "768",
+    "QWEN3VL_MAX_VIDEOS": "0",
+    "QWEN3VL_BINARY_PROMPT_SCHEMA": "subject_judgeability_v1",
+    "QWEN3VL_RESCUE_PROMPT_SCHEMA": "guarded_teacher_gate_v3",
+}
+
 
 @dataclass(frozen=True)
 class EvalScorerRuntime:
     """Paths to external model scorers (host-only, not pip deps)."""
 
-    gpu_id: int
+    gpu_id: int = 0
     vggt_python_bin: str | None = None
     vggt_repo: str | None = None
     vggt_checkpoint: str | None = None
@@ -47,10 +94,22 @@ class EvalRuntimeConfig:
 
 def _parse_eval_node(payload: dict[str, Any], *, context: str) -> EvalScorerRuntime:
     eval_block = payload.get("eval")
-    if isinstance(eval_block, dict) and isinstance(eval_block.get("scorers"), dict):
-        node = eval_block["scorers"]
+    if isinstance(eval_block, dict):
+        if "scorers" in eval_block:
+            if not isinstance(eval_block.get("scorers"), dict):
+                raise RuntimeConfigError(f"{context}: required object field 'eval.scorers' is missing or invalid")
+            node = eval_block["scorers"]
+        elif isinstance(eval_block.get("backends"), dict) and eval_block["backends"]:
+            node = {}
+        else:
+            raise RuntimeConfigError(f"{context}: required object field 'eval.scorers' is missing or invalid")
     else:
         raise RuntimeConfigError(f"{context}: required object field 'eval.scorers' is missing or invalid")
+    gpu_id = (
+        _require_int(node, "gpu_id", context=f"{context}: eval.scorers")
+        if "gpu_id" in node
+        else 0
+    )
     return EvalScorerRuntime(
         vggt_python_bin=node.get("vggt_python_bin"),
         vggt_repo=node.get("vggt_repo"),
@@ -60,7 +119,7 @@ def _parse_eval_node(payload: dict[str, Any], *, context: str) -> EvalScorerRunt
         qwen_scorer_python=node.get("qwen_scorer_python"),
         qwen35_model=node.get("qwen35_model"),
         qwen3vl_model=node.get("qwen3vl_model"),
-        gpu_id=_require_int(node, "gpu_id", context=f"{context}: eval.scorers"),
+        gpu_id=gpu_id,
         extra_paths={str(k): str(v) for k, v in _optional_mapping(node, "extra_paths", context=f"{context}: eval.scorers").items()},
         env={str(k): str(v) for k, v in _optional_mapping(node, "env", context=f"{context}: eval.scorers").items()},
     )
@@ -203,7 +262,7 @@ def d1_score(
         str(output_jsonl),
         "--summary-csv",
         str(summary_csv),
-        "--megasam-cache-root",
+        "--pose-cache-root",
         str(pose_cache_root),
         "--pose-backend",
         pose_backend,
@@ -242,7 +301,7 @@ def d1_camalign_score(
     input_jsonl: Path,
     output_jsonl: Path,
     pose_cache_root: Path,
-    poses_file: str,
+    poses_file: str = "poses.npy",
     scorer_version: str = "v2_lite",
     summary_json: Path | None = None,
 ) -> int:
@@ -273,16 +332,20 @@ def d1_vggt_batch(
     cache_root: Path,
     execution_mode: str | None = None,
     video_root: Path | None = None,
+    max_frames: int | None = None,
 ) -> int:
     backend = get_backend("pose", eval_runtime.backends.get("pose"))
-    return backend(
-        eval_runtime=eval_runtime,
-        input_jsonl=input_jsonl,
-        output_root=output_root,
-        cache_root=cache_root,
-        execution_mode=execution_mode,
-        video_root=video_root,
-    )
+    kwargs: dict[str, Any] = {
+        "eval_runtime": eval_runtime,
+        "input_jsonl": input_jsonl,
+        "output_root": output_root,
+        "cache_root": cache_root,
+        "execution_mode": execution_mode,
+        "video_root": video_root,
+    }
+    if max_frames is not None:
+        kwargs["max_frames"] = max_frames
+    return backend(**kwargs)
 
 
 def _run_vggt_omega(
@@ -293,6 +356,7 @@ def _run_vggt_omega(
     cache_root: Path,
     execution_mode: str | None,
     video_root: Path | None,
+    max_frames: int | None = None,
 ) -> int:
     scorers = eval_runtime.scorers
     for field_name, value in (
@@ -303,6 +367,18 @@ def _run_vggt_omega(
         if not value or not Path(str(value)).exists():
             raise FileNotFoundError(f"eval.scorers.{field_name} missing or not found: {value!r}")
     from wrbench.eval.d1.run_d1_vggt_omega_batch import main as batch_main
+
+    resolved_max_frames = (
+        int(max_frames)
+        if max_frames is not None
+        else _extra_int_or_default(
+            scorers,
+            "d1_vggt_max_frames",
+            int(DEFAULT_VGGT_EXTRA["d1_vggt_max_frames"]),
+        )
+    )
+    if resolved_max_frames < 0:
+        raise RuntimeConfigError("eval.scorers.extra_paths.d1_vggt_max_frames must be >= 0")
 
     argv = [
         "--input-jsonl",
@@ -320,20 +396,24 @@ def _run_vggt_omega(
         "--python",
         str(scorers.vggt_python_bin),
         "--execution-mode",
-        execution_mode or _require_extra(scorers, "d1_vggt_execution_mode"),
+        execution_mode or _extra_or_default(scorers, "d1_vggt_execution_mode", DEFAULT_VGGT_EXTRA["d1_vggt_execution_mode"]),
         "--poses-file",
         _extra_or_default(scorers, "d1_poses_file", DEFAULT_D1_SCORER_CONFIG["poses_file"]),
         "--image-resolution",
-        str(_require_extra_int(scorers, "d1_vggt_image_resolution")),
+        str(_extra_int_or_default(scorers, "d1_vggt_image_resolution", int(DEFAULT_VGGT_EXTRA["d1_vggt_image_resolution"]))),
         "--preprocess-mode",
-        _require_extra(scorers, "d1_vggt_preprocess_mode"),
+        _extra_or_default(scorers, "d1_vggt_preprocess_mode", DEFAULT_VGGT_EXTRA["d1_vggt_preprocess_mode"]),
+        "--concat-pose-mode",
+        _extra_or_default(scorers, "d1_vggt_concat_pose_mode", "full_concat"),
         "--cwd",
-        _require_extra(scorers, "d1_vggt_cwd"),
+        _extra_or_default(scorers, "d1_vggt_cwd", DEFAULT_VGGT_EXTRA["d1_vggt_cwd"]),
         "--shard-index",
-        _require_extra(scorers, "d1_vggt_shard_index"),
+        str(_extra_int_or_default(scorers, "d1_vggt_shard_index", int(DEFAULT_VGGT_EXTRA["d1_vggt_shard_index"]))),
         "--num-shards",
-        _require_extra(scorers, "d1_vggt_num_shards"),
+        str(_extra_int_or_default(scorers, "d1_vggt_num_shards", int(DEFAULT_VGGT_EXTRA["d1_vggt_num_shards"]))),
     ]
+    if resolved_max_frames > 0:
+        argv.extend(["--max-frames", str(resolved_max_frames)])
     if video_root is not None:
         argv.extend(["--video-root", str(video_root)])
     return batch_main(argv)
@@ -359,11 +439,11 @@ def d2_extract(
 
 def _d2_sampling(scorers: EvalScorerRuntime) -> dict[str, str | float | int]:
     return {
-        "sample_policy": _require_extra(scorers, "d2_sample_policy"),
-        "sample_fps": _require_extra_float(scorers, "d2_sample_fps"),
-        "min_frames": _require_extra_int(scorers, "d2_min_frames"),
-        "max_frames": _require_extra_int(scorers, "d2_max_frames"),
-        "batch_size": _require_extra_int(scorers, "d2_batch_size"),
+        "sample_policy": _extra_or_default(scorers, "d2_sample_policy", DEFAULT_D2_EXTRA["d2_sample_policy"]),
+        "sample_fps": _extra_float_or_default(scorers, "d2_sample_fps", float(DEFAULT_D2_EXTRA["d2_sample_fps"])),
+        "min_frames": _extra_int_or_default(scorers, "d2_min_frames", int(DEFAULT_D2_EXTRA["d2_min_frames"])),
+        "max_frames": _extra_int_or_default(scorers, "d2_max_frames", int(DEFAULT_D2_EXTRA["d2_max_frames"])),
+        "batch_size": _extra_int_or_default(scorers, "d2_batch_size", int(DEFAULT_D2_EXTRA["d2_batch_size"])),
     }
 
 
@@ -388,7 +468,7 @@ def _run_dinov2_fullfov(
         "--out-jsonl",
         str(out_jsonl),
         "--device",
-        _require_extra(scorers, "d2_device"),
+        _extra_or_default(scorers, "d2_device", DEFAULT_D2_EXTRA["d2_device"]),
     ]
     for key, value in _d2_sampling(scorers).items():
         argv.extend(["--" + key.replace("_", "-"), str(value)])
@@ -403,16 +483,31 @@ def _run_dinov2_fullfov(
     )
 
 
+def _resolve_scorer_profile(
+    scorer_profile: str | None,
+    *,
+    backends: dict[str, str] | None = None,
+) -> str:
+    if scorer_profile is None or not str(scorer_profile).strip():
+        if backends and any(name != DEFAULT_BACKENDS[stage] for stage, name in backends.items()):
+            return "custom"
+        return "wrbench_default"
+    raw = str(scorer_profile).strip()
+    return "wrbench_default" if raw == "default" else raw
+
+
 def d3d6_env(
     *,
     eval_runtime: EvalRuntimeConfig,
     manifest: Path,
     out_dir: Path,
-    scorer_profile: str,
+    scorer_profile: str = "wrbench_default",
 ) -> dict[str, str]:
     profile = str(scorer_profile).strip()
     if not profile:
         raise ValueError("scorer_profile is required")
+    if profile == "default":
+        profile = "wrbench_default"
     scorers = eval_runtime.scorers
     for field_name, value in (
         ("qwen_scorer_python", scorers.qwen_scorer_python),
@@ -447,14 +542,20 @@ def d3d6_env(
         "QWEN3VL_BINARY_PROMPT_SCHEMA",
         "QWEN3VL_RESCUE_PROMPT_SCHEMA",
     )
-    missing_env = [name for name in required_env if not str(scorers.env.get(name, "")).strip()]
+    merged_env = dict(DEFAULT_D3D6_ENV)
+    if "CUDA_DEVICES_CSV" not in scorers.env:
+        merged_env["CUDA_DEVICES_CSV"] = str(scorers.gpu_id)
+    for key, value in scorers.env.items():
+        merged_env[str(key)] = str(value)
+
+    missing_env = [name for name in required_env if not str(merged_env.get(name, "")).strip()]
     if missing_env:
         raise RuntimeConfigError(
             "eval.scorers.env missing required D3-D6 field(s): " + ", ".join(missing_env)
         )
     shell = Path(__file__).with_name("score_runtime_v2_d3d6.sh")
     env = {
-        **scorers.env,
+        **merged_env,
         "MANIFEST": str(manifest.resolve()),
         "OUT_DIR": str(out_dir.resolve()),
         "SCORER_PROFILE": profile,
@@ -464,9 +565,8 @@ def d3d6_env(
         "QWEN3VL_MODEL": str(scorers.qwen3vl_model),
         "CUDA_VISIBLE_DEVICES": str(scorers.gpu_id),
     }
-    if not shell.is_file():
-        raise FileNotFoundError(f"D3-D6 shell orchestrator missing: {shell}")
-    env["WRBENCH_D3D6_SCRIPT"] = str(shell)
+    if shell.is_file():
+        env["WRBENCH_D3D6_SCRIPT"] = str(shell)
     return env
 
 
@@ -475,11 +575,15 @@ def d3d6_score(
     eval_runtime: EvalRuntimeConfig,
     manifest: Path,
     out_dir: Path,
-    stage: str,
-    scorer_profile: str,
+    stage: str = "all",
+    scorer_profile: str | None = "wrbench_default",
 ) -> int:
     selected = eval_runtime.backends.get("vlm")
-    if selected and selected != DEFAULT_BACKENDS["vlm"] and scorer_profile == "wrbench_default":
+    resolved_profile = _resolve_scorer_profile(
+        scorer_profile,
+        backends={"vlm": selected} if selected else None,
+    )
+    if selected and selected != DEFAULT_BACKENDS["vlm"] and resolved_profile == "wrbench_default":
         raise ValueError("Use --scorer-profile custom for a nonstandard VLM backend")
     backend = get_backend("vlm", selected)
     scores_path = out_dir / D3D6_SCORES
@@ -489,7 +593,7 @@ def d3d6_score(
         out_dir=out_dir,
         scores_path=scores_path,
         stage=stage,
-        scorer_profile=scorer_profile,
+        scorer_profile=resolved_profile,
     )
     if rc == 0 and stage in {"all", "export"} and not scores_path.is_file():
         raise FileNotFoundError(f"D3-D6 export missing: {scores_path}")
@@ -505,14 +609,15 @@ def _run_qwen_runtime(
     stage: str,
     scorer_profile: str,
 ) -> int:
+    from wrbench.eval.d3d6_pipeline import run_d3d6_pipeline
+
     env = d3d6_env(
         eval_runtime=eval_runtime,
         manifest=manifest,
         out_dir=out_dir,
         scorer_profile=scorer_profile,
     )
-    script = Path(env["WRBENCH_D3D6_SCRIPT"])
-    return run_shell_script(script, stage, env=env)
+    return run_d3d6_pipeline(stage=stage, env=env)
 
 
 def _resolve_manifest_paths(row: dict[str, Any], base: Path) -> dict[str, Any]:
@@ -533,14 +638,15 @@ def eval_run(
     eval_runtime: EvalRuntimeConfig,
     manifest: Path,
     out_dir: Path,
-    scorer_profile: str,
-    sidecar_profile_gate: str,
+    scorer_profile: str | None = None,
+    sidecar_profile_gate: str = "main",
     target_fallback_mode: str = "none",
     video_root: Path | None = None,
     camalign_scorer_version: str = "v2_lite",
 ) -> int:
     """Run the full WRBench eval pipeline: D1 pose -> D1 score -> D2 -> D3-D6 -> table."""
-    if scorer_profile == "wrbench_default":
+    resolved_profile = _resolve_scorer_profile(scorer_profile, backends=eval_runtime.backends)
+    if resolved_profile == "wrbench_default":
         from wrbench.eval.d2.extract_d2_dinov2_fullfov_candidate import PAPER_SAMPLING
 
         if any(name != DEFAULT_BACKENDS[stage] for stage, name in eval_runtime.backends.items()):
@@ -551,6 +657,15 @@ def eval_run(
             raise ValueError(
                 "wrbench_default requires D2 time_fps, 3 fps, min 4, max 24, batch 4. "
                 "Update eval.scorers.extra_paths from the runtime example or use --scorer-profile custom."
+            )
+        vggt_max_frames = _extra_int_or_default(
+            eval_runtime.scorers,
+            "d1_vggt_max_frames",
+            int(DEFAULT_VGGT_EXTRA["d1_vggt_max_frames"]),
+        )
+        if vggt_max_frames != int(DEFAULT_VGGT_EXTRA["d1_vggt_max_frames"]):
+            raise ValueError(
+                "wrbench_default requires d1_vggt_max_frames=49; use --scorer-profile custom to override"
             )
     for stage, name in eval_runtime.backends.items():
         get_backend(stage, name)
@@ -652,14 +767,14 @@ def eval_run(
         manifest=manifest_json,
         out_dir=d3d6_out,
         stage="all",
-        scorer_profile=scorer_profile,
+        scorer_profile=resolved_profile,
     )
     if rc != 0:
         return rc
 
     return build_table(
         [
-            "--runtime-scores",
+            "--d3d6-scores",
             str(runtime_scores),
             "--d1-scores",
             str(d1_scored),

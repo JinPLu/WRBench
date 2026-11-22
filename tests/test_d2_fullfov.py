@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from wrbench.eval.aggregate import latest_d1_d6_metrics as metric_contract
-from wrbench.eval.aggregate.build_wrbench_vnext_main_table import build_table
+from wrbench.eval.aggregate.build_main_table import build_table
 from wrbench.eval.d2 import extract_d2_dinov2_fullfov_candidate as d2_fullfov
 
 
@@ -260,20 +260,21 @@ def test_runtime_example_and_contract_match_fullfov_3fps_max24(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    repo_root = Path(__file__).resolve().parents[1]
-    example = json.loads((repo_root / "wrbench.runtime.example.json").read_text(encoding="utf-8"))
-    extra = example["eval"]["scorers"]["extra_paths"]
+    from wrbench.eval import runtime as eval_runtime_mod
 
-    assert extra["d2_sample_policy"] == "time_fps"
-    assert extra["d2_sample_fps"] == "3.0"
-    assert extra["d2_min_frames"] == "4"
-    assert extra["d2_max_frames"] == "24"
-    assert extra["d2_batch_size"] == "4"
+    repo_root = Path(__file__).resolve().parents[1]
+    example_cfg = eval_runtime_mod.load_eval_runtime(repo_root / "wrbench.runtime.example.json")
+    assert example_cfg is not None
+    sampling = eval_runtime_mod._d2_sampling(example_cfg.scorers)
+
+    assert sampling["sample_policy"] == "time_fps"
+    assert sampling["sample_fps"] == 3.0
+    assert sampling["min_frames"] == 4
+    assert sampling["max_frames"] == 24
+    assert sampling["batch_size"] == 4
 
     d2_spec = metric_contract.metric_by_dimension("D2")
     assert d2_spec.owner == "wrbench.eval.d2.extract_d2_dinov2_fullfov_candidate"
-
-    from wrbench.eval import runtime as eval_runtime_mod
 
     py = tmp_path / "python"
     py.write_text("#!/bin/sh\n", encoding="utf-8")
@@ -293,14 +294,6 @@ def test_runtime_example_and_contract_match_fullfov_3fps_max24(
             gpu_id=0,
             dinov2_python_bin=str(py),
             dinov2_model_path=str(model_dir),
-            extra_paths={
-                "d2_device": extra["d2_device"],
-                "d2_sample_policy": extra["d2_sample_policy"],
-                "d2_sample_fps": extra["d2_sample_fps"],
-                "d2_min_frames": extra["d2_min_frames"],
-                "d2_max_frames": extra["d2_max_frames"],
-                "d2_batch_size": extra["d2_batch_size"],
-            },
         ),
     )
     rc = eval_runtime_mod.d2_extract(

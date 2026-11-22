@@ -13,14 +13,17 @@ checks that the two agree.
 
 from __future__ import annotations
 
+import importlib.metadata
+import inspect
 import json
+import os
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 
 MODELS_DIR = Path(__file__).resolve().parent / "models"
+PLUGIN_ENTRY_POINT_GROUP = "wrbench.plugins"
 
 VALID_INPUT_KINDS = {"image", "none", "source_video"}
 VALID_MODEL_INPUTS = {"T2V", "TI2V", "TV2V"}
@@ -42,6 +45,7 @@ TEMPORAL_SOURCE_VIDEO_USAGES = {
 }
 
 VALID_TRANSLATION_UNITS = {
+    "none",
     "canonical_scene",
     "cameractrl_scene",
     "blender_c2w_scene",
@@ -119,12 +123,38 @@ def _require_float(record: dict[str, Any], field: str, *, key: str) -> float:
     return float(value)
 
 
+def register_translation_unit(unit: str) -> None:
+    """Register an additional valid amplitude ``translation_unit``."""
+    normalized = str(unit or "").strip()
+    if not normalized:
+        raise RegistryError("translation_unit must be a non-empty string")
+    VALID_TRANSLATION_UNITS.add(normalized)
+
+
+def _is_valid_translation_unit(unit: str) -> bool:
+    if unit in VALID_TRANSLATION_UNITS:
+        return True
+    if unit.startswith("custom:"):
+        return bool(unit.split(":", 1)[1].strip())
+    return False
+
+
 def _parse_amplitude(key: str, record: dict[str, Any]) -> CameraAmplitude:
     amp = record.get("amplitude")
+    if amp is None and str(record.get("adapter") or "") == "prompt_camera":
+        return CameraAmplitude(
+            model_key=key,
+            rotation_gain=1.0,
+            translation_gain=1.0,
+            max_amount=0.5,
+            translation_unit="none",
+            calibration_status="prompt_only",
+            metadata={},
+        )
     if not isinstance(amp, dict):
         raise RegistryError(f"{key}: missing 'amplitude' object")
     unit = _require_str(amp, "translation_unit", key=key)
-    if unit not in VALID_TRANSLATION_UNITS:
+    if not _is_valid_translation_unit(unit):
         raise RegistryError(f"{key}: unsupported translation_unit {unit!r}")
     try:
         return CameraAmplitude(
@@ -244,29 +274,182 @@ def _parse_record(path: Path, payload: dict[str, Any]) -> ModelRecord:
     )
 
 
-@lru_cache(maxsize=1)
+class _PluginAPI:
+    """Lightweight plugin registration surface passed to 1-arg ``wrbench.plugins`` entry points."""
+
+    def register_model_record(
+        self,
+        payload: dict[str, Any],
+        *,
+        source: str = "<plugin>",
+        overwrite: bool = False,
+    ) -> ModelRecord:
+        return register_model_record(payload, source=source, overwrite=overwrite)
+
+    def load_model_spec_file(
+        self,
+        path: str | Path,
+        *,
+        overwrite: bool = True,
+    ) -> ModelRecord:
+        return load_model_spec_file(path, overwrite=overwrite)
+
+    def register_translation_unit(self, unit: str) -> None:
+        register_translation_unit(unit)
+
+    def register_adapter(self, model_name_or_group: str | list[str] | tuple[str, ...], adapter: Any) -> None:
+        from wrbench.adapters.base import register_adapter
+
+        register_adapter(model_name_or_group, adapter)
+
+    def register_generation_backend(self, name: str, factory: Any) -> Any:
+        from wrbench.backends.registry import register_generation_backend
+
+        return register_generation_backend(name, factory)
+
+    def register_launcher(self, spec: Any) -> Any:
+        from wrbench.backends.launchers import register_launcher
+
+        return register_launcher(spec)
+
+
+_CACHE: tuple[dict[str, ModelRecord], dict[str, str]] | None = None
+_LOADING = False
+
+
+def _insert_record(
+    records: dict[str, ModelRecord],
+    alias_lookup: dict[str, str],
+    record: ModelRecord,
+    *,
+    overwrite: bool,
+) -> ModelRecord:
+    existing = records.get(record.key)
+    if existing is not None and not overwrite:
+        raise RegistryError(f"Duplicate model key: {record.key}")
+    for alias in record.aliases:
+        owner = alias_lookup.get(alias)
+        if owner is not None and owner != record.key:
+            raise RegistryError(f"Alias collision {alias!r}: {owner} vs {record.key}")
+    if existing is not None:
+        for old_alias in existing.aliases:
+            if alias_lookup.get(old_alias) == record.key:
+                del alias_lookup[old_alias]
+    records[record.key] = record
+    for alias in record.aliases:
+        alias_lookup[alias] = record.key
+    return record
+
+
+def _iter_model_dirs() -> list[Path]:
+    raw = os.environ.get("WRBENCH_MODEL_DIRS", "")
+    dirs: list[Path] = []
+    for entry in raw.split(os.pathsep):
+        cleaned = entry.strip()
+        if not cleaned:
+            continue
+        candidate = Path(cleaned).expanduser()
+        if candidate.is_dir():
+            dirs.append(candidate)
+    return dirs
+
+
+def _entry_points_for_group(group: str) -> list[Any]:
+    eps = importlib.metadata.entry_points()
+    if hasattr(eps, "select"):
+        return list(eps.select(group=group))
+    return list(eps.get(group, ()))
+
+
+def _invoke_plugin_entry_point(ep: Any) -> None:
+    fn = ep.load()
+    if not callable(fn):
+        return
+    sig = inspect.signature(fn)
+    required_positional = [
+        p
+        for p in sig.parameters.values()
+        if p.default is inspect.Parameter.empty
+        and p.kind in (inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD)
+    ]
+    if not required_positional:
+        fn()
+    elif len(required_positional) == 1:
+        fn(_PluginAPI())
+    else:
+        raise RegistryError(
+            f"Plugin entry point {getattr(ep, 'name', ep)!r} expects {len(required_positional)} "
+            "required arguments; expected 0 or 1"
+        )
+
+
 def _load() -> tuple[dict[str, ModelRecord], dict[str, str]]:
+    global _CACHE, _LOADING
+    if _CACHE is not None:
+        return _CACHE
     if not MODELS_DIR.exists():
         raise RegistryError(f"Missing models directory: {MODELS_DIR}")
     records: dict[str, ModelRecord] = {}
     alias_lookup: dict[str, str] = {}
-    for path in sorted(MODELS_DIR.glob("*.json")):
-        record = _parse_record(path, json.loads(path.read_text(encoding="utf-8")))
-        if record.key in records:
-            raise RegistryError(f"Duplicate model key: {record.key}")
-        records[record.key] = record
-        for alias in record.aliases:
-            if alias in alias_lookup and alias_lookup[alias] != record.key:
-                raise RegistryError(f"Alias collision {alias!r}: {alias_lookup[alias]} vs {record.key}")
-            alias_lookup[alias] = record.key
-    if not records:
-        raise RegistryError(f"No model records found in {MODELS_DIR}")
+    _CACHE = (records, alias_lookup)
+    _LOADING = True
+    try:
+        for path in sorted(MODELS_DIR.glob("*.json")):
+            record = _parse_record(path, json.loads(path.read_text(encoding="utf-8")))
+            _insert_record(records, alias_lookup, record, overwrite=False)
+        if not records:
+            raise RegistryError(f"No model records found in {MODELS_DIR}")
+        for extra_dir in _iter_model_dirs():
+            for path in sorted(extra_dir.glob("*.json")):
+                payload = json.loads(path.read_text(encoding="utf-8"))
+                if not isinstance(payload, dict):
+                    raise RegistryError(f"{path}: model spec must be a JSON object")
+                record = _parse_record(path, payload)
+                _insert_record(records, alias_lookup, record, overwrite=True)
+        for ep in _entry_points_for_group(PLUGIN_ENTRY_POINT_GROUP):
+            _invoke_plugin_entry_point(ep)
+    except Exception:
+        _CACHE = None
+        raise
+    finally:
+        _LOADING = False
     return records, alias_lookup
 
 
+def register_model_record(
+    payload: dict[str, Any],
+    *,
+    source: str = "<runtime>",
+    overwrite: bool = False,
+) -> ModelRecord:
+    """Validate and register a model record dynamically without modifying wrbench source."""
+    if not isinstance(payload, dict):
+        raise RegistryError(f"{source}: model record payload must be a dict")
+    records, alias_lookup = _load()
+    record = _parse_record(Path(source), payload)
+    return _insert_record(records, alias_lookup, record, overwrite=overwrite)
+
+
+def load_model_spec_file(
+    path: str | Path,
+    *,
+    overwrite: bool = True,
+) -> ModelRecord:
+    """Load and register a model record from an external JSON spec file."""
+    resolved = Path(path).expanduser()
+    if not resolved.is_file():
+        raise FileNotFoundError(f"Model spec file not found: {resolved}")
+    payload = json.loads(resolved.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise RegistryError(f"{resolved}: model spec must be a JSON object")
+    return register_model_record(payload, source=str(resolved), overwrite=overwrite)
+
+
 def reload() -> None:
-    """Clear the cached registry (useful in tests after editing model files)."""
-    _load.cache_clear()
+    """Clear the cached registry and re-read built-in models, WRBENCH_MODEL_DIRS, and plugins on next load."""
+    global _CACHE, _LOADING
+    _CACHE = None
+    _LOADING = False
 
 
 def canonical_model_key(name: str) -> str:

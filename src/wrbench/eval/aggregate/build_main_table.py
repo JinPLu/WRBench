@@ -15,7 +15,7 @@ from typing import Any, Mapping
 from wrbench.eval._io import read_records, write_json
 from wrbench.eval.aggregate import latest_d1_d6_metrics as metric_contract
 from wrbench.eval.d1.nominal_target import camera_type, is_prompt_only_row
-from wrbench.registry import viewpoint_condition_type
+from wrbench.registry import RegistryError, model_input as registry_model_input, viewpoint_condition_type
 
 EXCLUDED_MAIN_TABLE_MODELS = set(
     metric_contract.MAIN_TABLE_HYPERPARAMETERS["excluded_main_table_models"]
@@ -37,7 +37,7 @@ def _viewpoint_condition(
         value = viewpoint_condition_type(model)
         if value:
             return value
-    except KeyError:
+    except (KeyError, RegistryError):
         pass
     candidates: list[Mapping[str, Any]] = []
     if isinstance(rows, Mapping):
@@ -51,7 +51,29 @@ def _viewpoint_condition(
                 return str(raw)
         if is_prompt_only_row(row):
             return "prompt-only"
-    return ""
+    return "custom"
+
+
+def _model_input(
+    model: str,
+    rows: Mapping[str, Any] | list[dict[str, Any]] | None = None,
+) -> str:
+    try:
+        value = registry_model_input(model)
+        if value:
+            return value
+    except (KeyError, RegistryError):
+        pass
+    candidates: list[Mapping[str, Any]] = []
+    if isinstance(rows, Mapping):
+        candidates = [rows]
+    elif rows:
+        candidates = list(rows)
+    for row in candidates:
+        raw = row.get("model_input")
+        if raw not in (None, ""):
+            return str(raw)
+    return "unknown"
 
 
 def _gate_applicable(row: Mapping[str, Any]) -> bool | None:
@@ -133,7 +155,13 @@ def build_table(
             or d2_by_model.get(model, [])
         )
         model_vct = _viewpoint_condition(model, rows)
-        out: dict[str, Any] = {"model": model, "n_records": len(rows), "viewpoint_condition_type": model_vct}
+        model_inp = _model_input(model, rows)
+        out: dict[str, Any] = {
+            "model": model,
+            "n_records": len(rows),
+            "viewpoint_condition_type": model_vct,
+            "model_input": model_inp,
+        }
         ready = True
         gates = {str(row["video_id"]): _gate_applicable(row) for row in buckets.get(model, ())}
         gate_values = [gate for gate in gates.values() if gate is not None]
@@ -304,7 +332,14 @@ def _fmt(value: Any) -> str:
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    fields = ["model", "viewpoint_condition_type", "n_records", "reobservation_support", "reobservation_support_n"]
+    fields = [
+        "model",
+        "viewpoint_condition_type",
+        "model_input",
+        "n_records",
+        "reobservation_support",
+        "reobservation_support_n",
+    ]
     for spec in DIMENSION_SPECS:
         fields.extend([spec.output_column, f"{spec.output_column}_n"])
         if spec in (D1_SPEC, D2_SPEC, CAMALIGN_SPEC):
@@ -372,7 +407,14 @@ def write_md(path: Path, rows: list[dict[str, Any]], summary: Mapping[str, Any])
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--runtime-scores", type=Path, required=True)
+    parser.add_argument(
+        "--d3d6-scores",
+        "--vlm-scores",
+        "--runtime-scores",
+        dest="runtime_scores",
+        type=Path,
+        required=True,
+    )
     parser.add_argument("--d1-scores", type=Path)
     parser.add_argument("--d1-camalign-scores", type=Path)
     parser.add_argument("--d2-scores", type=Path)

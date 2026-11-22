@@ -110,10 +110,10 @@
     ]
   },
   "column_status": {
-    "paper_group": "DEPRECATED legacy grouping (V2V/Camera/Interactive/API prompt-camera). No longer used in the paper. The paper and the live table builder (wrbench.eval.aggregate.build_wrbench_vnext_main_table) group models by viewpoint_condition_type (source-video/geometry-cache/model-inferred/prompt-only). Retained only to reproduce the frozen published artifact; do not use for new analysis.",
-    "source_group": "DEPRECATED legacy provenance bucket (local_deployed/api_prompt_camera). Retained for the frozen artifact only.",
+    "paper_group": "Deprecated legacy grouping (V2V/Camera/Interactive/API prompt-camera). The paper and table builder (wrbench.eval.aggregate.build_main_table) group models by viewpoint_condition_type (source-video/geometry-cache/model-inferred/prompt-only). Retained only for frozen-artifact reproduction.",
+    "source_group": "Deprecated legacy provenance bucket (local_deployed/api_prompt_camera). Retained for frozen-artifact reproduction only.",
     "model_input": "Model input modality, one of {T2V, TI2V, TV2V}. Canonical values live in the wrbench model registry. Runtime input_kind is separate: LiveWorld and Spatia accept source-video wrappers but use only frame 0, so their benchmark model_input is TI2V.",
-    "viewpoint_condition_type": "Paper viewpoint condition type (Table 2): source-video, geometry-cache, model-inferred, or prompt-only. Canonical values live in the wrbench model registry."
+    "viewpoint_condition_type": "Paper viewpoint-conditioning paradigm (Table 2): source-video, geometry-cache, model-inferred, or prompt-only. Canonical values live in the wrbench model registry."
   },
   "model_input_policy": {
     "T2V": "Text-to-video; no first-frame image and no source/reference video.",

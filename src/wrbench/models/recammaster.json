@@ -19,6 +19,11 @@
   "default_frames": 81,
   "default_height": 480,
   "default_width": 832,
+  "execution_contract": {
+    "wrbench_policy": {
+      "refuse_overwrite_output": true
+    }
+  },
   "input_kind": "source_video",
   "key": "recammaster",
   "model_input": "TV2V",

@@ -13,7 +13,7 @@
 WRBench provides three composable pieces:
 
 - **Compile:** turn a camera instruction into a model-native payload and auditable sidecars. No GPU is required.
-- **Generate (optional):** execute that payload through a configured model backend.
+- **Generate (optional):** execute that payload through a configured model backend or command template.
 - **Evaluate:** score existing videos with the separable D1–D6 diagnostic contract.
 
 The repository also bundles Natural-25 prompts and first frames, the frozen 23-model paper table, and the versioned paper reproducibility contract.
@@ -73,9 +73,9 @@ wrbench generate \
   --out out.mp4
 ```
 
-`wrbench generate` is compile-only by default: it writes the target trajectory, native payload, and metadata without loading a model. Use `wrbench actions --camera "yaw:left:37@49" --fps 16` to inspect a custom camera script. See [the camera-control reference](docs/camera-control.md) and [more compile examples](examples/README.md).
+`wrbench generate` is compile-only by default: it writes the target trajectory, native payload, and metadata without loading a model. Add `--runtime-config wrbench.runtime.json --no-dry-run` to run real generation through a configured backend. Use `wrbench actions --camera "yaw:left:37@49" --fps 16` to inspect a custom camera script. See [the camera-control reference](docs/camera-control.md), [generation backends](docs/backends/README.md), and [more compile examples](examples/README.md).
 
-## 2. Evaluate an existing video set
+## 2. Evaluate a video set
 
 First inspect the metric contract; this requires no model configuration:
 
@@ -83,29 +83,28 @@ First inspect the metric contract; this requires no model configuration:
 wrbench eval contract
 ```
 
-For D1–D6 scoring, copy [`wrbench.runtime.example.json`](wrbench.runtime.example.json) to `wrbench.runtime.json`, fill in the scorer paths, and run:
+For D1–D6 scoring, copy [`wrbench.runtime.example.json`](wrbench.runtime.example.json) to an untracked `wrbench.runtime.json` and set your local scorer interpreter, repository, and checkpoint paths (canonical paper defaults for VGGT-Omega, DINOv2, and Qwen D3–D6 are applied automatically). Check scorer readiness, validate the manifest, and run the pipeline:
 
 ```bash
+wrbench doctor --eval --runtime-config wrbench.runtime.json
+wrbench eval validate --manifest videos.json
 wrbench eval --runtime-config wrbench.runtime.json run \
   --manifest videos.json \
   --out-dir eval_out \
-  --scorer-profile wrbench_default \
-  --sidecar-profile-gate main
+  --target-mode requested_profile
 ```
 
-Scorer requirements and granular commands are documented in [the evaluation guide](docs/eval/README.md). D1–D6 remain separate diagnostics; WRBench does not collapse them into one quality score.
+Scorer requirements, individual stage commands, and custom evaluator hooks are documented in [the evaluation guide](docs/eval/README.md). D1–D6 remain separate diagnostics; WRBench does not collapse them into one quality score.
 
-## 3. Generate videos (optional)
+## 3. Benchmark or integrate any model
 
-Real generation is an explicit opt-in because each upstream model has its own environment and weights. Copy [`wrbench.runtime.example.json`](wrbench.runtime.example.json), configure a supported backend, then add `--runtime-config /path/to/wrbench.runtime.json --no-dry-run` to the compile command above. See [the backend guide](docs/backends/README.md) or try the [ReCamMaster source-video example](docs/models/recammaster.md).
+WRBench supports three integration levels without modifying WRBench source files:
 
-## 4. Add a model
+- **Evaluate existing videos:** export standardized Natural-25 tasks with `wrbench tasks export`, generate MP4s in your own pipeline, verify the manifest with `wrbench eval validate`, and score with `wrbench eval run`.
+- **Declarative model spec + command template:** pass an external JSON spec (`--model-spec` or top-level `model_spec_files` in `wrbench.runtime.json`) using a built-in declarative adapter (`declarative_pose`, `declarative_action`, or `prompt_camera`), and run inference via `"backend": "command_template"`.
+- **Python plugins:** register custom adapters, generation backends, launchers, or evaluators (`pose`, `d2`, `vlm`, and segment policies) via `module:callable` references or `pyproject.toml` entry points (`wrbench.plugins`, `wrbench.eval_plugins`). Inspect loaded extensions with `wrbench plugins`.
 
-A generation-capable model needs one registry record, one adapter module, and one adapter import. Follow [Adding a model](docs/adding-a-model.md), then validate it with:
-
-```bash
-wrbench doctor --model <model-key>
-```
+See [Integrating models and evaluators](docs/plugins.md) for templates and examples, or [Adding a built-in model](docs/adding-a-model.md) when contributing a model directly to this repository.
 
 ## Evaluation dimensions
 
@@ -123,12 +122,14 @@ Rows without re-observation support are excluded from D5/D6 rather than counted 
 
 ## Documentation
 
+- [Integrating models and evaluators](docs/plugins.md)
 - [Camera-control grammar](docs/camera-control.md)
 - [Evaluation and scorer configuration](docs/eval/README.md)
 - [Generation backends](docs/backends/README.md)
-- [Adding a model](docs/adding-a-model.md)
+- [Adding a built-in model](docs/adding-a-model.md)
 - [Prompt generation](docs/prompts.md)
 - [First-frame generation](docs/first-frame.md)
+- [Generation resource profiling](docs/cost-profiling.md)
 
 ## Citation
 

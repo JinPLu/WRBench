@@ -61,12 +61,12 @@ CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
     "D2": {
         "promotion_status": PAPER_FACING_READY_STATUS,
         "current_source": "d2_fullfov_dinov2_v2_20260605",
-        "current_run_tag": "d2_lg_v2_candidate_e_as_selected_visual_integrity",
+        "current_run_tag": CONTRACT_VERSION,
         "blocking_caveat": None,
     },
     "D3": {
         "promotion_status": BENCHMARK_DEFAULT_STATUS,
-        "current_source": "p25_d3d4_slot_parse_latest_20260608",
+        "current_source": "visible_probe_slot_parse_20260608",
         "current_run_tag": WORLDSTATE_CURRENT_RUN_TAG,
         "prompt_mode": WORLDSTATE_PROMPT_MODE,
         "coverage": "9600/9600",
@@ -74,7 +74,7 @@ CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
     },
     "D4": {
         "promotion_status": BENCHMARK_DEFAULT_STATUS,
-        "current_source": "p25_d3d4_slot_parse_latest_20260608",
+        "current_source": "visible_probe_slot_parse_20260608",
         "current_run_tag": WORLDSTATE_CURRENT_RUN_TAG,
         "prompt_mode": WORLDSTATE_PROMPT_MODE,
         "coverage": "9600/9600",
@@ -82,7 +82,7 @@ CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
     },
     "D5": {
         "promotion_status": BENCHMARK_DEFAULT_STATUS,
-        "current_source": "p22_d5d6_score_with_shared_e14_gate_20260608",
+        "current_source": "returned_probe_with_shared_gate_20260608",
         "current_run_tag": WORLDSTATE_CURRENT_RUN_TAG,
         "prompt_mode": WORLDSTATE_D5D6_NATIVE_PROMPT_MODE,
         "gate_name": WORLDSTATE_GATE_NAME,
@@ -92,7 +92,7 @@ CURRENT_EVIDENCE_STATUS_BY_DIMENSION = {
     },
     "D6": {
         "promotion_status": BENCHMARK_DEFAULT_STATUS,
-        "current_source": "p22_d5d6_score_with_shared_e14_gate_20260608",
+        "current_source": "returned_probe_with_shared_gate_20260608",
         "current_run_tag": WORLDSTATE_CURRENT_RUN_TAG,
         "prompt_mode": WORLDSTATE_D5D6_NATIVE_PROMPT_MODE,
         "gate_name": WORLDSTATE_GATE_NAME,
@@ -189,7 +189,7 @@ LATEST_METRICS: tuple[MetricSpec, ...] = (
         scale="0_to_1",
         forbidden_fallback_fields=("d2_dinov2_temporal_consistency",),
         hyperparameters={
-            "method": "fixed_nonlearned_dinov2_fullfov_v2_candidate_e",
+            "method": "fixed_nonlearned_dinov2_fullfov_v2",
             "combine_rule": "min(cls_first_last_cosine, local_patch_token_low_p20)",
             "preprocessing": "full_fov_resize_pad_no_center_crop",
             "sampling": "time_fps_3_max24",
@@ -424,7 +424,7 @@ def metric_contract_markdown(payload: Mapping[str, Any] | None = None) -> str:
             "- D1-CamAlign v2-lite common-yaw includes local and API yaw rows. "
             "API static-hold is reported separately as `D1_camalign_static_hold`.",
             "- D2 uses the fixed full-FoV DINOv2 v2 visual-integrity score: "
-            f"`{d2.score_field} = d2_lg_v2_candidate_e = "
+            f"`{d2.score_field} = "
             f"{d2_params['combine_rule']}`. Preprocessing is "
             f"`{d2_params['preprocessing']}`; sampling is "
             f"`{d2_params['sampling']}`. The legacy display label "

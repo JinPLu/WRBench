@@ -100,7 +100,7 @@ def test_eval_runtime_reads_nested_scorers_block(tmp_path: Path) -> None:
     assert cfg.scorers.vggt_python_bin == "/tmp/vggt/bin/python"
 
 
-def test_eval_runtime_requires_scorer_gpu_id(tmp_path: Path) -> None:
+def test_eval_runtime_defaults_gpu_id_and_validates_type(tmp_path: Path) -> None:
     from wrbench.eval.runtime import load_eval_runtime
     from wrbench.runtime import RuntimeConfigError
 
@@ -109,9 +109,17 @@ def test_eval_runtime_requires_scorer_gpu_id(tmp_path: Path) -> None:
         json.dumps({"schema_version": 1, "eval": {"scorers": {"vggt_python_bin": "/tmp/python"}}}),
         encoding="utf-8",
     )
+    cfg = load_eval_runtime(runtime_path)
+    assert cfg is not None
+    assert cfg.scorers.gpu_id == 0
 
+    bad_path = tmp_path / "bad.runtime.json"
+    bad_path.write_text(
+        json.dumps({"schema_version": 1, "eval": {"scorers": {"gpu_id": "not-an-int"}}}),
+        encoding="utf-8",
+    )
     with pytest.raises(RuntimeConfigError, match="eval.scorers.*gpu_id"):
-        load_eval_runtime(runtime_path)
+        load_eval_runtime(bad_path)
 
 
 def test_d2_extract_requires_explicit_runtime_fields(tmp_path: Path) -> None:
@@ -268,7 +276,7 @@ def test_eval_runtime_exposes_no_scorer_profile_alias_layer() -> None:
 
 
 def test_main_table_includes_viewpoint_and_reobservation() -> None:
-    from wrbench.eval.aggregate.build_wrbench_vnext_main_table import build_table
+    from wrbench.eval.aggregate.build_main_table import build_table
 
     runtime_records = [
         {
@@ -374,11 +382,11 @@ def test_published_23model_model_input_column() -> None:
 
 def test_published_23model_viewpoint_condition_type_column() -> None:
     """The frozen 23-model table must expose viewpoint_condition_type consistent
-    with build_wrbench_vnext_main_table and aligned between CSV and JSON."""
+    with build_main_table and aligned between CSV and JSON."""
     import csv
 
     from wrbench.datasets import published_results_csv, published_results_json
-    from wrbench.eval.aggregate.build_wrbench_vnext_main_table import _viewpoint_condition
+    from wrbench.eval.aggregate.build_main_table import _viewpoint_condition
 
     allowed = {"source-video", "geometry-cache", "model-inferred", "prompt-only"}
 
@@ -447,7 +455,7 @@ def test_camalign_static_hold() -> None:
 
 
 def test_main_table_camalign_prompt_only() -> None:
-    from wrbench.eval.aggregate.build_wrbench_vnext_main_table import build_table
+    from wrbench.eval.aggregate.build_main_table import build_table
 
     runtime_records = [
         {

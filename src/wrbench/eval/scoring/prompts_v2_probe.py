@@ -13,12 +13,15 @@ from typing import Any
 
 PROBE_CATALOG_VERSION = "runtime_v2_probe_catalog_v1"
 DEFAULT_PROMPT_MODE = "runtime_v2_probe_logprob"
-PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED = "runtime_v2_probe_logprob_p9_d4_p8_d5_p6_combined"
+PROMPT_MODE_WRBENCH_PAPER = "wrbench_paper"
 PROMPT_MODE_P22_NATIVE_D5D6 = "runtime_v2_probe_logprob_p22_native_d5d6_score_only"
 PROMPT_MODE_P25_D3D4_SLOT_PARSE = "runtime_v2_probe_logprob_p25_d3d4_slot_parse"
+PROMPT_MODE_ALIASES: dict[str, str] = {
+    PROMPT_MODE_WRBENCH_PAPER: PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+}
 SUPPORTED_PROMPT_MODES = {
     DEFAULT_PROMPT_MODE,
-    PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+    PROMPT_MODE_WRBENCH_PAPER,
     PROMPT_MODE_P22_NATIVE_D5D6,
     PROMPT_MODE_P25_D3D4_SLOT_PARSE,
 }
@@ -421,7 +424,7 @@ def validate_prompt_mode(prompt_mode: str) -> str:
             f"unsupported prompt_mode: {prompt_mode}; "
             f"expected one of {sorted(SUPPORTED_PROMPT_MODES)}"
         )
-    return prompt_mode
+    return PROMPT_MODE_ALIASES.get(prompt_mode, prompt_mode)
 
 
 def question_for_probe(probe: RuntimeV2Probe, prompt_mode: str = DEFAULT_PROMPT_MODE) -> str:
@@ -429,7 +432,6 @@ def question_for_probe(probe: RuntimeV2Probe, prompt_mode: str = DEFAULT_PROMPT_
     if prompt_mode == PROMPT_MODE_P25_D3D4_SLOT_PARSE and probe.probe_id in P25_D3D4_QUESTIONS:
         return P25_D3D4_QUESTIONS[probe.probe_id]
     if prompt_mode in {
-        PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
         PROMPT_MODE_P22_NATIVE_D5D6,
         PROMPT_MODE_P25_D3D4_SLOT_PARSE,
     }:
@@ -553,7 +555,6 @@ def build_runtime_v2_probe_prompt(
         )
 
     combined_modes = {
-        PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
         PROMPT_MODE_P22_NATIVE_D5D6,
         PROMPT_MODE_P25_D3D4_SLOT_PARSE,
     }

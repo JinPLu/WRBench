@@ -21,8 +21,10 @@ if str(ROOT) not in sys.path:
 
 from wrbench.eval._io import read_records, safe_video_id, write_json, write_jsonl
 from wrbench.eval.d1.hydra_segments import (
+    clear_pose_segment,
     read_pose_segment,
     resolve_eval_video_for_row,
+    resolve_full_concat_pose_input,
     save_pose_segment,
 )
 from wrbench.eval.d1.run_vggt_omega_pose import (
@@ -51,9 +53,16 @@ class InprocessVGGTOmegaRunner:
         self.model = VGGTOmega().to(self.device).eval()
         self.model.load_state_dict(_load_state_dict(torch, Path(args.checkpoint)), strict=True)
 
-    def run_one(self, *, video_path: Path, scene_name: str, output_dir: Path) -> Path:
+    def run_one(
+        self,
+        *,
+        video_path: Path,
+        scene_name: str,
+        output_dir: Path,
+        max_frames: int | None = None,
+    ) -> Path:
         frames_dir = output_dir / "frames" / safe_scene_name(scene_name)
-        frame_paths = extract_frames(video_path, frames_dir, max_frames=self.args.max_frames)
+        frame_paths = extract_frames(video_path, frames_dir, max_frames=max_frames)
         images = self.load_and_preprocess_images(
             [str(path) for path in frame_paths],
             mode=self.args.preprocess_mode,
@@ -158,21 +167,34 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
     if args.execution_mode == "inprocess" and not args.dry_run:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
         runner = InprocessVGGTOmegaRunner(args)
+    args_max_frames = args.max_frames if (args.max_frames is not None and args.max_frames > 0) else None
+    concat_pose_mode = str(getattr(args, "concat_pose_mode", "generated_only") or "generated_only")
     for order, row in enumerate(rows):
         video_id = str(row.get("video_id") or "")
         input_video_path = row.get("path") or row.get("video_path")
         if input_video_path and not Path(str(input_video_path)).is_absolute() and args.video_root is not None:
             input_video_path = str(args.video_root / str(input_video_path))
-        eval_video_path, eval_metadata = resolve_eval_video_for_row(
-            row,
-            clip_root=cache_root / "eval_clips" / "generated_only",
-            materialize=not args.dry_run,
-            video_root=args.video_root,
-        )
+        if concat_pose_mode == "full_concat":
+            eval_video_path, eval_metadata, pose_expected_frames, is_concat_row = resolve_full_concat_pose_input(
+                row,
+                clip_root=cache_root / "eval_clips" / "generated_only",
+                materialize=not args.dry_run,
+                video_root=args.video_root,
+            )
+            row_max_frames = None if is_concat_row else args_max_frames
+        else:
+            eval_video_path, eval_metadata = resolve_eval_video_for_row(
+                row,
+                clip_root=cache_root / "eval_clips" / "generated_only",
+                materialize=not args.dry_run,
+                video_root=args.video_root,
+            )
+            is_concat_row = bool(eval_metadata)
+            row_max_frames = args_max_frames
+            pose_expected_frames = eval_metadata.get("generated_frame_count")
+            if pose_expected_frames is not None and row_max_frames is not None:
+                pose_expected_frames = min(pose_expected_frames, row_max_frames)
         video_path = str(eval_video_path) if str(eval_video_path) else input_video_path
-        pose_expected_frames = eval_metadata.get("generated_frame_count")
-        if pose_expected_frames is not None and args.max_frames is not None:
-            pose_expected_frames = min(pose_expected_frames, args.max_frames)
         safe = safe_video_id(video_id)
         output_dir = cache_root / "pose" / safe
         pose_path = output_dir / args.poses_file
@@ -184,6 +206,7 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
             "path": video_path,
             "pose_path": str(pose_path),
             "pose_expected_frames": pose_expected_frames,
+            "pose_max_frames": row_max_frames,
             "status": None,
             "pose_backend": "vggt_omega",
             "shard_index": args.shard_index,
@@ -208,7 +231,12 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
             log_path = log_root / f"{safe}.log"
             report["log_path"] = str(log_path)
             try:
-                runner.run_one(video_path=Path(str(video_path)), scene_name=safe, output_dir=output_dir)
+                runner.run_one(
+                    video_path=Path(str(video_path)),
+                    scene_name=safe,
+                    output_dir=output_dir,
+                    max_frames=row_max_frames,
+                )
                 report["returncode"] = 0
                 report["status"] = "ok" if _pose_ok(pose_path, expected_frames=pose_expected_frames) else "error"
             except Exception as exc:
@@ -242,8 +270,8 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
                 "--preprocess-mode",
                 str(args.preprocess_mode),
             ]
-            if args.max_frames:
-                command.extend(["--max_frames", str(args.max_frames)])
+            if row_max_frames:
+                command.extend(["--max_frames", str(row_max_frames)])
             env = dict(os.environ)
             env["CUDA_VISIBLE_DEVICES"] = str(args.gpu_id)
             log_path = log_root / f"{safe}.log"
@@ -259,7 +287,10 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
                     _write_jsonl(results_path, [report], append=True)
                 break
         if report["status"] == "ok":
-            save_pose_segment(row, pose_path, eval_metadata)
+            if eval_metadata:
+                save_pose_segment(row, pose_path, eval_metadata)
+            elif is_concat_row:
+                clear_pose_segment(pose_path)
         status_counts[str(report["status"])] += 1
         row_reports.append(report)
         if results_path:
@@ -277,6 +308,8 @@ def run_batch(args: argparse.Namespace) -> dict[str, Any]:
         "checkpoint": str(args.checkpoint),
         "image_resolution": int(args.image_resolution),
         "preprocess_mode": str(args.preprocess_mode),
+        "max_frames": args_max_frames,
+        "concat_pose_mode": concat_pose_mode,
         "shard_index": args.shard_index,
         "num_shards": args.num_shards,
         "gpu_id": str(args.gpu_id),
@@ -300,6 +333,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--num-shards", type=int, required=True)
     parser.add_argument("--limit", type=int)
     parser.add_argument("--max-frames", "--max_frames", dest="max_frames", type=int)
+    parser.add_argument(
+        "--concat-pose-mode",
+        choices=("generated_only", "full_concat"),
+        default="generated_only",
+        help=(
+            "Pose extraction mode for concat-output models (e.g. HyDRA). "
+            "'generated_only' cuts the generated segment before VGGT; "
+            "'full_concat' runs VGGT on the full concat video without max-frames truncation "
+            "and slices during D1/CamAlign scoring."
+        ),
+    )
     parser.add_argument("--image-resolution", "--image_resolution", dest="image_resolution", type=int, required=True)
     parser.add_argument("--preprocess-mode", "--preprocess_mode", dest="preprocess_mode", choices=("balanced", "max_size"), required=True)
     parser.add_argument("--execution-mode", choices=("subprocess", "inprocess"), required=True)
@@ -311,6 +355,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--stop-on-error", action="store_true")
     args = parser.parse_args(argv)
+    if args.max_frames is not None and args.max_frames < 0:
+        raise SystemExit("--max-frames must be >= 0")
     if args.num_shards < 1:
         raise SystemExit("--num-shards must be >= 1")
     if args.shard_index < 0 or args.shard_index >= args.num_shards:

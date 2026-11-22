@@ -1,0 +1,53 @@
+name: Bug Report
+description: Report a bug in WRBench CLI, camera compilation, plugins, or evaluation.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please include enough detail to reproduce the issue. Never paste API keys, credentials, or private hostnames.
+
+  - type: input
+    id: version
+    attributes:
+      label: WRBench version / commit
+      description: Output of `wrbench --version` and `git rev-parse --short HEAD`, plus Python and OS versions.
+      placeholder: "wrbench 0.1.3 (abc1234), Python 3.11, Ubuntu 22.04"
+    validations:
+      required: true
+
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command run
+      description: Paste the CLI command or minimal Python snippet that triggered the bug.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: runtime_config
+    attributes:
+      label: Runtime config summary (sanitized)
+      description: Relevant fields from `wrbench.runtime.json` or external `--model-spec` JSON (omit secrets/private paths).
+      render: json
+    validations:
+      required: false
+
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Expected vs. actual behavior
+      description: What you expected to happen and what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: traceback
+    attributes:
+      label: Traceback / CLI output
+      description: Full error message or stack trace (and `wrbench doctor` output if relevant).
+      render: text
+    validations:
+      required: true

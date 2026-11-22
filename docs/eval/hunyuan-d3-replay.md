@@ -11,7 +11,7 @@ These replays trace three D3 probes for Hunyuan WorldPlay and three D4 probes fo
 
 For comparison with released scores, start with the historical replay column and use the pinned model snapshot for weights, tokenizer, chat template and processor. Set `eval.scorers.qwen_scorer_python` to that environment's interpreter and `eval.scorers.qwen35_model` to the pinned model directory. `wrbench_default` selects benchmark scoring settings such as the prompt profile and frame rate. The scorer environment determines how the processor expands the video into input tokens. Save the environment versions with your scores. The token-alignment replay below isolates the effect of the extra tokens under the issue environment.
 
-Both examples ran on the same NVIDIA H20-3e in two environments. They shared Python 3.11.15, bfloat16, FlashAttention 2.8.3, einops 0.8.2, decord 0.6.0 and Accelerate 1.16.0. The scorer used the P25 probe profile, `task_context_mode=none`, 2 fps, one scoring sample and the processor's default pixel budgets. The Gated DeltaNet layers used the PyTorch fallback in both environments. [WRBench scorer at `51e5c91`](https://github.com/JinPLu/WRBench/tree/51e5c914fd935fc0661b921bafebccb66e31b104) · [Qwen3.5-9B weights and processor files at `c202236`](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a).
+Both examples ran on the same NVIDIA H20-3e in two environments. They shared Python 3.11.15, bfloat16, FlashAttention 2.8.3, einops 0.8.2, decord 0.6.0 and Accelerate 1.16.0. The scorer used the WRBench D3/D4 probe scorer, `task_context_mode=none`, 2 fps, one scoring sample and the processor's default pixel budgets. The Gated DeltaNet layers used the PyTorch fallback in both environments. [WRBench scorer at `51e5c91`](https://github.com/JinPLu/WRBench/tree/51e5c914fd935fc0661b921bafebccb66e31b104) · [Qwen3.5-9B weights and processor files at `c202236`](https://huggingface.co/Qwen/Qwen3.5-9B/tree/c202236235762e1c871ad0ccb60c8ee5ba337b9a).
 
 | Component | Historical replay | Issue replay |
 | --- | --- | --- |
@@ -24,20 +24,20 @@ Both examples ran on the same NVIDIA H20-3e in two environments. They shared Pyt
 
 The archived run records the historical Transformers and PyTorch versions, BF16 and the FlashAttention2 backend. Its exact FlashAttention and decord builds were unavailable, so the table specifies the versions used for the replay. Get PyTorch and torchvision from the [CUDA 12.8 wheel index](https://download.pytorch.org/whl/cu128). For the Torch 2.11 source build, set `CUDA_HOME` to the installed CUDA toolkit and set `FLASH_ATTENTION_FORCE_BUILD=TRUE FLASH_ATTN_CUDA_ARCHS=90` when [installing FlashAttention 2.8.3 from source](https://github.com/Dao-AILab/flash-attention/blob/v2.8.3/README.md#installation-and-features).
 
-To run the public P25 scorer, save a JSON array containing the single index row as `sample.json`, with `video_path` pointing to the downloaded file. Set `MODEL_DIR` to the pinned checkpoint directory and choose a fresh `OUT_DIR` for each environment. The command writes probe probabilities to `raw_v2_probe_scores.jsonl`.
+To run the WRBench D3/D4 probe scorer, save a JSON array containing the single index row as `sample.json`, with `video_path` pointing to the downloaded file. Set `MODEL_DIR` to the pinned checkpoint directory and choose a fresh `OUT_DIR` for each environment. The command writes probe probabilities to `raw_v2_probe_scores.jsonl`.
 
 ```bash
 WORLD_STATE_VIDEO_BACKEND=decord \
 python -m wrbench.eval.scoring.run_local_qwen35_probe_logprob_scorer \
   --manifest-path sample.json --model-path "$MODEL_DIR" --output-dir "$OUT_DIR" \
   --experiment-id qwen-probe-replay --vlm-name qwen35 --loader-family auto \
-  --prompt-mode runtime_v2_probe_logprob_p25_d3d4_slot_parse --task-context-mode none \
+  --prompt-mode wrbench_paper --task-context-mode none \
   --fps 2 --dtype bfloat16 --attn-implementation flash_attention_2 \
   --num-shards 1 --shard-id 0 --local-rank 0 --max-videos 1 --num-samples 1 \
   --progress-every 1 --evidence-context-mode visibility_v1
 ```
 
-The public command uses explicit CUDA placement and runs all 16 active probes. The traces below select the three probes for the target metric from the same scorer and use the placement recorded in the table.
+Here `--prompt-mode wrbench_paper` aliases the frozen paper probe prompt mode. The public command uses explicit CUDA placement and runs all 16 active probes. The traces below select the three probes for the target metric from the same scorer and use the placement recorded in the table.
 
 WRBench uses the supported Qwen3.5 multimodal input path. The processor's `apply_chat_template` prepares the video and text together, with `enable_thinking=False` for direct answers. WRBench defines the scoring protocol. One forward pass supplies the next-token logits for `p_yes`, the probability of the Yes variants conditional on the Yes and No variants. Both metrics average the two positive probe probabilities and `1 - p_yes` for the negative probe. Qwen's temperature, top-p and top-k recommendations apply to generated replies. [Transformers model documentation](https://huggingface.co/docs/transformers/model_doc/qwen3_5) · [Qwen model card](https://huggingface.co/Qwen/Qwen3.5-9B/blob/c202236235762e1c871ad0ccb60c8ee5ba337b9a/README.md#instruct-or-non-thinking-mode).
 

@@ -13,7 +13,7 @@
 ## Dry-run compile (out of the box)
 
 ```bash
-wrbench generate --model spatia --camera preset:yaw_LR --source-video source.mp4 --out out/spatia.mp4
+wrbench generate --model spatia --camera preset:yaw_LR --source-video source.mp4 --prompt "A house cat waits on the bedroom floor, facing the bed." --out out/spatia.mp4
 ```
 
 ## Python
@@ -25,7 +25,7 @@ wrbench.compile_camera(model="spatia", camera="yaw:left:60@40,yaw:right:60@41", 
 
 ## Real generation
 
-WRBench compiles the model-native payload and sidecars locally. Real video generation requires the model's own environment (weights, GPU, venv). See the upstream model repository and use the compiled `.payload.json` / sidecars as inputs.
+WRBench compiles the model-native payload and sidecars locally. Real video generation requires the model's own environment (weights, GPU, venv): configure `command_template` or `local_subprocess` in `wrbench.runtime.json` (see [Generation backends](../backends/README.md) and [Integrating models and evaluators](../plugins.md)) or pass the compiled `.payload.json` / sidecars to the upstream model repository.
 
 Spatia's wrapper extracts frame 0 for the official image path. It is not a
 temporal TV2V model for WRBench taxonomy, even though the runtime argument is a

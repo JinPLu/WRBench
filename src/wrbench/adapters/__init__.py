@@ -9,10 +9,13 @@ from wrbench.adapters.base import (
     compile_camera_payload,
     register,
     register_adapter,
+    register_named_adapter,
     registered_model_keys,
+    registered_named_adapters,
 )
 
 _ADAPTER_MODULES = [
+    "wrbench.adapters.declarative",
     "wrbench.adapters.wan_fun",
     "wrbench.adapters.hunyuan",
     "wrbench.adapters.recammaster",
@@ -32,10 +35,21 @@ _ADAPTER_MODULES = [
 for _module in _ADAPTER_MODULES:
     importlib.import_module(_module)
 
+from wrbench.adapters.declarative import (
+    DeclarativeActionAdapter,
+    DeclarativePoseAdapter,
+    PromptCameraAdapter,
+)
+
 __all__ = [
+    "DeclarativeActionAdapter",
+    "DeclarativePoseAdapter",
+    "PromptCameraAdapter",
     "adapter_for_model",
     "compile_camera_payload",
     "register",
     "register_adapter",
+    "register_named_adapter",
     "registered_model_keys",
+    "registered_named_adapters",
 ]

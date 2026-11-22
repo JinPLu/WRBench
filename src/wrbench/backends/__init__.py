@@ -7,10 +7,17 @@ from wrbench.backends.base import (
     GenerationResult,
     default_backend,
 )
+from wrbench.backends.command_template import CommandTemplateBackend
 from wrbench.backends.local_subprocess import LocalSubprocessBackend
-from wrbench.backends.registry import list_backends, resolve_backend
+from wrbench.backends.registry import (
+    list_backends,
+    register_generation_backend,
+    registered_generation_backends,
+    resolve_backend,
+)
 
 __all__ = [
+    "CommandTemplateBackend",
     "DryRunBackend",
     "GenerationBackend",
     "GenerationRequest",
@@ -18,5 +25,7 @@ __all__ = [
     "LocalSubprocessBackend",
     "default_backend",
     "list_backends",
+    "register_generation_backend",
+    "registered_generation_backends",
     "resolve_backend",
 ]

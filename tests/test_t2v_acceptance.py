@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -135,6 +136,14 @@ def test_minwm_wan_rotation_patch_materialized(tmp_path) -> None:
     assert request["runtime_patch"]["launcher_path"] == patch["launcher_path"]
 
 
+def _subprocess_env() -> dict[str, str]:
+    src_dir = str(Path(__file__).resolve().parents[1] / "src")
+    env = os.environ.copy()
+    existing = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = os.pathsep.join(part for part in (src_dir, existing) if part)
+    return env
+
+
 def test_prepare_minwm_probe_requires_explicit_case(tmp_path: Path) -> None:
     script = Path(__file__).resolve().parents[1] / "scripts" / "t2v" / "prepare_minwm_wan_acceptance_probe.py"
     result = subprocess.run(
@@ -148,6 +157,7 @@ def test_prepare_minwm_probe_requires_explicit_case(tmp_path: Path) -> None:
         ],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 2
     assert "--case" in result.stderr
@@ -166,6 +176,7 @@ def test_prepare_minwm_probe_requires_explicit_prompt_profile(tmp_path: Path) ->
         ],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 2
     assert "--prompt-profile" in result.stderr
@@ -186,6 +197,7 @@ def test_prepare_minwm_probe_writes_prompt_profile_manifest(tmp_path: Path) -> N
         ],
         capture_output=True,
         text=True,
+        env=_subprocess_env(),
     )
     assert result.returncode == 0, result.stderr
 

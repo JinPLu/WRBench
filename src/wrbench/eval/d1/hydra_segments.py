@@ -201,6 +201,13 @@ def save_pose_segment(row: dict[str, Any], pose_file: Path, segment: dict[str, A
         })
 
 
+def clear_pose_segment(pose_file: Path) -> None:
+    """Remove any stale generated-segment receipt when writing a full-concat pose stack."""
+    receipt = _pose_segment_path(pose_file)
+    if receipt.exists():
+        receipt.unlink()
+
+
 def read_pose_segment(row: dict[str, Any], pose_file: Path) -> dict[str, Any]:
     try:
         receipt = json.loads(_pose_segment_path(pose_file).read_text(encoding="utf-8"))
@@ -408,6 +415,131 @@ def resolve_eval_video_for_row(
     if segment_policy:
         meta["hydra_segment_policy"] = segment_policy
     return out_path, meta
+
+
+def resolve_full_concat_pose_input(
+    row: dict[str, Any],
+    clip_root: Path,
+    materialize: bool = True,
+    *,
+    video_root: Path | None = None,
+    allow_canonical_default: bool = True,
+) -> tuple[Path, dict[str, Any], int | None, bool]:
+    """Resolve pose-extraction input for concat-output models using full-concat poses.
+
+    Returns ``(video_path, eval_metadata, expected_frames, is_concat_row)``:
+    - Non-concat rows return ``(original_path, {}, None, False)`` so standard
+      ``max_frames`` sampling applies.
+    - Rows that are already ``generated_only`` (or point to an existing generated
+      clip) delegate to ``resolve_eval_video_for_row`` with ``is_concat_row=True``
+      so ``max_frames`` will not truncate their generated segment.
+    - Full-concat rows (e.g. HyDRA 77+77 = 154 frames) return the original concat
+      video with ``eval_metadata={}`` and ``expected_frames=total_frames``, so
+      VGGT runs on the full concat sequence without truncation and D1/CamAlign
+      slice ``[condition:condition+generated]`` during scoring.
+    """
+    input_value = row.get("path") or row.get("video_path")
+    if not input_value:
+        return Path(""), {"hydra_segment_status": "missing_video_path"}, None, False
+    original_path = Path(str(input_value))
+    if not original_path.is_absolute() and video_root is not None:
+        original_path = Path(video_root) / original_path
+    policy = _matching_segment_policy(row)
+    if not isinstance(policy, ConcatSegmentPolicy):
+        return original_path, {}, None, False
+
+    if (
+        row.get("evaluated_segment") == "generated_only"
+        or _existing_eval_path(row) is not None
+    ):
+        eval_path, meta = resolve_eval_video_for_row(
+            row,
+            clip_root=clip_root,
+            materialize=materialize,
+            video_root=video_root,
+            allow_canonical_default=allow_canonical_default,
+        )
+        return eval_path, meta, meta.get("generated_frame_count"), True
+
+    if not original_path.exists():
+        early_sidecar = load_camera_sidecar(original_path)
+        early_cond = sidecar_condition_frames(early_sidecar) or _positive_int(row.get("condition_frame_count"))
+        early_gen = _positive_int(row.get("generated_frame_count")) or _sidecar_generated_frames(early_sidecar)
+        return (
+            original_path,
+            _metadata(
+                eval_video_path=original_path,
+                original_concat_path=original_path,
+                status="unresolved",
+                condition_frames=early_cond,
+                generated_frames=early_gen,
+                source_video_path=row.get("source_video_path"),
+            ),
+            None,
+            True,
+        )
+
+    total_frames = video_frame_count(original_path)
+    sidecar, condition_frames, generated_frames, _segment_policy, source_video_path = _resolve_concat_counts(
+        row,
+        original_path,
+        total_count=total_frames,
+        allow_canonical_default=allow_canonical_default,
+        policy=policy,
+    )
+    if condition_frames is None:
+        return (
+            original_path,
+            _metadata(
+                eval_video_path=original_path,
+                original_concat_path=original_path,
+                status="unresolved",
+                condition_frames=condition_frames,
+                generated_frames=generated_frames,
+                source_video_path=source_video_path,
+            ),
+            None,
+            True,
+        )
+
+    if total_frames == (generated_frames or condition_frames) and (
+        isinstance(sidecar, dict)
+        and (
+            sidecar.get("evaluated_segment") == "generated_only"
+            or sidecar.get("hydra_segment_status") in {"already_generated_only", "generated_only_materialized"}
+        )
+    ):
+        meta = _metadata(
+            eval_video_path=original_path,
+            original_concat_path=Path(str(row.get("original_concat_path") or original_path)),
+            status="already_generated_only",
+            condition_frames=condition_frames,
+            generated_frames=total_frames,
+            start_frame=0,
+            end_frame=total_frames,
+            source_video_path=source_video_path,
+        )
+        return original_path, meta, total_frames, True
+
+    if generated_frames is None:
+        generated_frames = condition_frames
+
+    if generated_frames is None or total_frames != condition_frames + generated_frames:
+        return (
+            original_path,
+            _metadata(
+                eval_video_path=original_path,
+                original_concat_path=original_path,
+                status="unresolved",
+                condition_frames=condition_frames,
+                generated_frames=generated_frames,
+                source_video_path=source_video_path,
+            ),
+            None,
+            True,
+        )
+
+    return original_path, {}, int(total_frames), True
 
 
 def slice_concat_poses(

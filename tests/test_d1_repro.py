@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 
 from wrbench.cli import _build_parser
-from wrbench.eval.aggregate import build_wrbench_vnext_main_table as table_builder
+from wrbench.eval.aggregate import build_main_table as table_builder
 from wrbench.eval.d1 import d1_camalign, d1_camera, hydra_segments
 from wrbench.eval.d1.camera_intent import score_camera_intent_row, score_camera_intent_v2_lite
 from wrbench.eval.d1.nominal_target import (

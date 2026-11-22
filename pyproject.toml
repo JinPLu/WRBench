@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "wrbench"
 dynamic = ["version"]
-description = "Out-of-the-box unified camera control for video-generation world models: frame-level actions, arbitrary translation/rotation, and preset combinations compiled to model-native payloads."
+description = "Unified camera control, pluggable model generation, and D1-D6 world-state diagnostic evaluation for video world models."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"

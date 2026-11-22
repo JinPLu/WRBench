@@ -20,7 +20,7 @@ DUMMY_QWEN35_MODEL = "/tmp/qwen35-model-dir"
 
 def qwen35_required_args(
     *,
-    prompt_mode: str = qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+    prompt_mode: str = qwen35_mod.DEFAULT_PROMPT_MODE,
     task_context_mode: str = "all_manifest_metadata",
 ) -> list[str]:
     return [
@@ -243,23 +243,21 @@ def test_qwen35_standalone_manifest_dry_run_without_source_scores(tmp_path: Path
     assert "vlm_state_fidelity" in rows[0]
 
 
-def test_qwen35_legacy_p9_manifest_metadata_context_remains_available() -> None:
+def test_qwen35_manifest_metadata_context_remains_available_in_default_prompt_mode() -> None:
     args = qwen35_mod.parse_args(
         [
             "--experiment-id",
-            "best_profile_contract",
-            "--prompt-mode",
-            qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
-            "--task-context-mode",
-            "all_manifest_metadata",
-            "--strict-manifest-contract",
+            "metadata_context_contract",
             "--manifest-path",
             "/tmp/manifest.json",
             "--output-dir",
             "/tmp/out",
             "--model-path",
             DUMMY_QWEN35_MODEL,
-            *qwen35_required_args(),
+            *qwen35_required_args(
+                prompt_mode=qwen35_mod.DEFAULT_PROMPT_MODE,
+                task_context_mode="all_manifest_metadata",
+            ),
         ]
     )
 
@@ -284,7 +282,7 @@ def test_qwen35_legacy_p9_manifest_metadata_context_remains_available() -> None:
         attn_implementation="flash_attention_2",
         local_rank=0,
         dry_run=True,
-        prompt_mode=qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+        prompt_mode=qwen35_mod.DEFAULT_PROMPT_MODE,
     )
     assert scorer.task_context_mode == "all_manifest_metadata"
 
@@ -671,14 +669,15 @@ def test_metric_scoring_python_files_do_not_import_workplace() -> None:
     [
         (False, {}, None),
         (True, {}, None),
-        (False, {"PROMPT_MODE": qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED}, "PROMPT_MODE"),
+        (False, {"SCORER_PROFILE": "default", "PROMPT_MODE": "wrbench_paper"}, None),
+        (False, {"PROMPT_MODE": qwen35_mod.DEFAULT_PROMPT_MODE}, "PROMPT_MODE"),
         (False, {"TASK_CONTEXT_MODE": "all_manifest_metadata"}, "TASK_CONTEXT_MODE"),
         (False, {"QWEN3VL_BINARY_PROMPT_SCHEMA": qwen3vl_mod.PROMPT_SCHEMA_GUARDED}, "QWEN3VL_BINARY_PROMPT_SCHEMA"),
         (False, {"QWEN3VL_RESCUE_PROMPT_SCHEMA": "incorrect"}, "QWEN3VL_RESCUE_PROMPT_SCHEMA"),
         (
             False,
             {"SCORER_PROFILE": "ablation_manifest_metadata",
-             "PROMPT_MODE": qwen35_mod.PROMPT_MODE_P9_D4_P8_D5_P6_COMBINED,
+             "PROMPT_MODE": qwen35_mod.DEFAULT_PROMPT_MODE,
              "TASK_CONTEXT_MODE": "all_manifest_metadata"},
             None,
         ),
@@ -747,13 +746,20 @@ def test_score_runtime_v2_shell_preflight(
 
 
 def test_runtime_example_matches_wrbench_default_d3d6_profile() -> None:
+    from wrbench.eval import runtime as eval_runtime_mod
     from wrbench.eval.scoring import prompts_v2_probe
 
     runtime_example = Path(__file__).resolve().parents[1] / "wrbench.runtime.example.json"
-    payload = json.loads(runtime_example.read_text(encoding="utf-8"))
-    env = payload["eval"]["scorers"]["env"]
+    cfg = eval_runtime_mod.load_eval_runtime(runtime_example)
+    assert cfg is not None
+    assert cfg.scorers.env == {}
 
-    assert env["PROMPT_MODE"] == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
+    env = eval_runtime_mod.DEFAULT_D3D6_ENV
+    assert env["PROMPT_MODE"] == prompts_v2_probe.PROMPT_MODE_WRBENCH_PAPER
+    assert (
+        prompts_v2_probe.validate_prompt_mode(env["PROMPT_MODE"])
+        == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
+    )
     assert env["TASK_CONTEXT_MODE"] == "none"
     assert int(env["QWEN3VL_MAX_NEW_TOKENS"]) == qwen3vl_mod.DEFAULT_MAX_NEW_TOKENS
 
@@ -761,9 +767,51 @@ def test_runtime_example_matches_wrbench_default_d3d6_profile() -> None:
 def test_current_qwen35_profile_is_declared_and_guarded_without_overlay() -> None:
     from wrbench.eval.scoring import prompts_v2_probe
 
+    assert prompts_v2_probe.PROMPT_MODE_WRBENCH_PAPER in prompts_v2_probe.SUPPORTED_PROMPT_MODES
     assert prompts_v2_probe.PROMPT_MODE_P22_NATIVE_D5D6 in prompts_v2_probe.SUPPORTED_PROMPT_MODES
     assert prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE in prompts_v2_probe.SUPPORTED_PROMPT_MODES
-    assert prompts_v2_probe.validate_prompt_mode(prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE) == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
+    assert (
+        prompts_v2_probe.validate_prompt_mode(prompts_v2_probe.PROMPT_MODE_WRBENCH_PAPER)
+        == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
+    )
+    assert (
+        prompts_v2_probe.validate_prompt_mode(prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE)
+        == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
+    )
+
+    # Confirm wrbench_paper produces 100% bit-identical prompts across all probes
+    for probe in prompts_v2_probe.RUNTIME_V2_PROBE_CATALOG:
+        p_alias = prompts_v2_probe.build_runtime_v2_probe_prompt(
+            world_state_prompt="A person places a cup on a table.",
+            video_id="vid-alias",
+            probe=probe,
+            fps="2",
+            prompt_mode=prompts_v2_probe.PROMPT_MODE_WRBENCH_PAPER,
+        )
+        p_canon = prompts_v2_probe.build_runtime_v2_probe_prompt(
+            world_state_prompt="A person places a cup on a table.",
+            video_id="vid-alias",
+            probe=probe,
+            fps="2",
+            prompt_mode=prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+        )
+        assert p_alias == p_canon
+
+    # parse_args normalizes wrbench_paper to canonical mode and enforces the same guards
+    parsed = qwen35_mod.parse_args(
+        [
+            "--experiment-id", "alias_ok",
+            "--manifest-path", "/tmp/m.json",
+            "--output-dir", "/tmp/o",
+            "--model-path", DUMMY_QWEN35_MODEL,
+            "--strict-manifest-contract",
+            *qwen35_required_args(
+                prompt_mode=prompts_v2_probe.PROMPT_MODE_WRBENCH_PAPER,
+                task_context_mode="none",
+            ),
+        ]
+    )
+    assert parsed.prompt_mode == prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE
 
     with pytest.raises(SystemExit):
         qwen35_mod.parse_args(
@@ -773,7 +821,7 @@ def test_current_qwen35_profile_is_declared_and_guarded_without_overlay() -> Non
                 "--output-dir", "/tmp/o",
                 "--model-path", DUMMY_QWEN35_MODEL,
                 *qwen35_required_args(
-                    prompt_mode=prompts_v2_probe.PROMPT_MODE_P25_D3D4_SLOT_PARSE,
+                    prompt_mode=prompts_v2_probe.PROMPT_MODE_WRBENCH_PAPER,
                     task_context_mode="all_manifest_metadata",
                 ),
             ]
